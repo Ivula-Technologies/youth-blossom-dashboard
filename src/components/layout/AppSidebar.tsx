@@ -6,7 +6,6 @@ import {
   Calendar,
   BarChart3,
   Settings,
-  LogOut,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -92,10 +91,10 @@ export function AppSidebar() {
         "flex items-center h-16 px-4 border-b border-sidebar-border",
         collapsed ? "justify-center" : "gap-3"
       )}>
-        <img src="/canopy-logo.svg" alt="Canopy logo" className="w-9 h-9 rounded-lg object-cover" />
+        <img src="/ivula-mark.svg" alt="Ivula Canopy logo" className="w-9 h-9 rounded-lg object-contain bg-white p-1" />
         {!collapsed && (
           <div className="flex flex-col">
-            <span className="font-display font-semibold text-sidebar-foreground">Canopy</span>
+            <span className="font-display font-semibold text-sidebar-foreground">Ivula Canopy</span>
             <span className="text-xs text-muted-foreground">Ministry Dashboard</span>
           </div>
         )}
