@@ -106,7 +106,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span>Youth Blossom</span>
+                    <span>Ivula Canopy</span>
                     <span className="text-xs font-normal text-muted-foreground truncate">
                       {userEmail}
                     </span>
