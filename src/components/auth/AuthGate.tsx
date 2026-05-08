@@ -1,5 +1,5 @@
 import { FormEvent, useState, type ReactNode } from "react";
-import { LockKeyhole, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,12 +35,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
     <main className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3">
-          <div className="h-11 w-11 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <LockKeyhole className="h-5 w-5" />
-          </div>
+          <img src="/ivula-mark.svg" alt="Ivula Canopy logo" className="h-12 w-12 rounded-lg object-contain bg-white p-1" />
           <div>
-            <CardTitle>Youth Blossom</CardTitle>
-            <CardDescription>Sign in to access the ministry dashboard</CardDescription>
+            <CardTitle>Ivula Canopy</CardTitle>
+            <CardDescription>Sign in to access the Ivula Canopy dashboard</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
