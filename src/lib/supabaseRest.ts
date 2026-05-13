@@ -57,6 +57,18 @@ function requireSupabaseConfig() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
+function toSession(payload: any): SupabaseSession | null {
+  const source = payload.session ?? payload;
+  if (!source?.access_token) return null;
+
+  return {
+    access_token: source.access_token,
+    refresh_token: source.refresh_token,
+    expires_at: source.expires_at,
+    user: source.user ?? payload.user,
+  };
+}
+
 export async function signInWithPassword(email: string, password: string) {
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
   const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
@@ -73,13 +85,36 @@ export async function signInWithPassword(email: string, password: string) {
     throw new Error(payload.error_description || payload.msg || payload.message || "Unable to sign in");
   }
 
-  const session: SupabaseSession = {
-    access_token: payload.access_token,
-    refresh_token: payload.refresh_token,
-    expires_at: payload.expires_at,
-    user: payload.user,
-  };
+  const session = toSession(payload);
+  if (!session) {
+    throw new Error("Unable to start a signed-in session.");
+  }
+
   storeSession(session);
+  return session;
+}
+
+export async function signUpWithPassword(email: string, password: string) {
+  const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
+  const response = await fetch(`${supabaseUrl}/auth/v1/signup`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseAnonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error_description || payload.msg || payload.message || "Unable to sign up");
+  }
+
+  const session = toSession(payload);
+  if (session) {
+    storeSession(session);
+  }
+
   return session;
 }
 
