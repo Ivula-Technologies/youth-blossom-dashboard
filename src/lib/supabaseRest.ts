@@ -1,4 +1,5 @@
 const SUPABASE_SESSION_KEY = "youth_blossom_supabase_session";
+const ACTIVE_CHURCH_KEY = "ivula_canopy_active_church";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -28,10 +29,24 @@ export function getStoredSession(): SupabaseSession | null {
 export function storeSession(session: SupabaseSession | null) {
   if (!session) {
     window.localStorage.removeItem(SUPABASE_SESSION_KEY);
+    window.localStorage.removeItem(ACTIVE_CHURCH_KEY);
     return;
   }
 
   window.localStorage.setItem(SUPABASE_SESSION_KEY, JSON.stringify(session));
+}
+
+export function getActiveChurchId(): string | null {
+  return window.localStorage.getItem(ACTIVE_CHURCH_KEY);
+}
+
+export function storeActiveChurchId(churchId: string | null) {
+  if (!churchId) {
+    window.localStorage.removeItem(ACTIVE_CHURCH_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(ACTIVE_CHURCH_KEY, churchId);
 }
 
 function requireSupabaseConfig() {
