@@ -158,19 +158,12 @@ async function replaceDeletedRows(table: string, nextIds: string[]) {
   );
 }
 
-async function loadYouths(fallback: Youth[]): Promise<Youth[]> {
+async function loadYouths(): Promise<Youth[]> {
   const churchId = requireActiveChurchId();
   const rows = await supabaseRequest<YouthRow[]>(
     `youths?select=*&church_id=eq.${encodeURIComponent(churchId)}&order=created_at.desc`
   );
-  if (rows.length > 0) return rows.map(toYouth);
-
-  if (fallback.length > 0) {
-    await syncYouths(fallback);
-    return fallback;
-  }
-
-  return [];
+  return rows.map(toYouth);
 }
 
 async function syncYouths(youths: Youth[]) {
@@ -187,19 +180,12 @@ async function syncYouths(youths: Youth[]) {
   );
 }
 
-async function loadAttendance(fallback: AttendanceRecord[]): Promise<AttendanceRecord[]> {
+async function loadAttendance(): Promise<AttendanceRecord[]> {
   const churchId = requireActiveChurchId();
   const rows = await supabaseRequest<AttendanceRow[]>(
     `attendance_records?select=*&church_id=eq.${encodeURIComponent(churchId)}&order=recorded_at.desc`
   );
-  if (rows.length > 0) return rows.map(toAttendance);
-
-  if (fallback.length > 0) {
-    await syncAttendance(fallback);
-    return fallback;
-  }
-
-  return [];
+  return rows.map(toAttendance);
 }
 
 async function syncAttendance(records: AttendanceRecord[]) {
@@ -220,11 +206,11 @@ export async function loadPersistentValue<T>(key: string, fallback: T): Promise<
   if (!isSupabaseConfigured || !getActiveChurchId()) return fallback;
 
   if (key === STORAGE_KEYS.YOUTHS) {
-    return (await loadYouths(fallback as Youth[])) as T;
+    return (await loadYouths()) as T;
   }
 
   if (key === STORAGE_KEYS.ATTENDANCE_RECORDS) {
-    return (await loadAttendance(fallback as AttendanceRecord[])) as T;
+    return (await loadAttendance()) as T;
   }
 
   return fallback;
