@@ -43,6 +43,9 @@ const YouthDirectory = () => {
     canRecordAttendance,
     canExportRecords,
   } = useAuth();
+  const memberLabel = activeMembership?.memberLabel ?? "People";
+  const groupLabel = activeMembership?.groupLabel ?? "Groups";
+  const attendanceLabel = activeMembership?.attendanceLabel ?? "Attendance";
   const [youths, setYouths] = useLocalStorage<Youth[]>(STORAGE_KEYS.YOUTHS, initialYouths);
   const [attendanceRecords, setAttendanceRecords] = useLocalStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE_RECORDS, []);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,8 +67,7 @@ const YouthDirectory = () => {
         youth.email.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === "all" || youth.status === statusFilter;
       const matchesAge = ageFilter === "all" || youth.ageGroup === ageFilter;
-      const matchesEngagement =
-        engagementFilter === "all" || youth.engagementStatus === engagementFilter;
+      const matchesEngagement = engagementFilter === "all" || youth.engagementStatus === engagementFilter;
       return matchesSearch && matchesStatus && matchesAge && matchesEngagement;
     });
   }, [youths, searchQuery, statusFilter, ageFilter, engagementFilter]);
@@ -75,21 +77,19 @@ const YouthDirectory = () => {
   const showPermissionError = (action: string) => {
     toast({
       title: "Permission needed",
-      description: `${action} is not available for the ${roleLabel} role in this church.`,
+      description: `${action} is not available for the ${roleLabel} role in this organization.`,
       variant: "destructive",
     });
   };
 
   const handleAddYouth = (newYouth: Partial<Youth>) => {
     if (!canEditRecords) {
-      showPermissionError("Adding or editing youth records");
+      showPermissionError(`Adding or editing ${memberLabel.toLowerCase()} records`);
       return;
     }
 
     if (editingYouth) {
-      setYouths((prev) => prev.map((y) =>
-        y.id === editingYouth.id ? { ...y, ...newYouth } as Youth : y
-      ));
+      setYouths((prev) => prev.map((y) => y.id === editingYouth.id ? { ...y, ...newYouth } as Youth : y));
       setEditingYouth(null);
     } else {
       setYouths((prev) => [...prev, newYouth as Youth]);
@@ -98,7 +98,7 @@ const YouthDirectory = () => {
 
   const handleEditYouth = (youth: Youth) => {
     if (!canEditRecords) {
-      showPermissionError("Editing youth profiles");
+      showPermissionError(`Editing ${memberLabel.toLowerCase()} profiles`);
       return;
     }
 
@@ -109,7 +109,7 @@ const YouthDirectory = () => {
 
   const handleDeleteYouth = (youth: Youth) => {
     if (!canManageChurch) {
-      showPermissionError("Deleting youth records");
+      showPermissionError(`Deleting ${memberLabel.toLowerCase()} records`);
       return;
     }
 
@@ -119,21 +119,21 @@ const YouthDirectory = () => {
 
   const handleConfirmDelete = (youth: Youth) => {
     if (!canManageChurch) {
-      showPermissionError("Deleting youth records");
+      showPermissionError(`Deleting ${memberLabel.toLowerCase()} records`);
       return;
     }
 
     setYouths((prev) => prev.filter((y) => y.id !== youth.id));
     setDeleteYouth(null);
     toast({
-      title: "Youth Deleted",
+      title: "Record Deleted",
       description: `${youth.firstName} ${youth.lastName} has been removed from the directory.`,
     });
   };
 
   const handleRecordAttendance = (youth: Youth) => {
     if (!canRecordAttendance) {
-      showPermissionError("Recording attendance");
+      showPermissionError(`Recording ${attendanceLabel.toLowerCase()}`);
       return;
     }
 
@@ -143,7 +143,7 @@ const YouthDirectory = () => {
 
   const handleAttendanceRecorded = (youth: Youth, record: any) => {
     if (!canRecordAttendance) {
-      showPermissionError("Recording attendance");
+      showPermissionError(`Recording ${attendanceLabel.toLowerCase()}`);
       return;
     }
 
@@ -167,9 +167,7 @@ const YouthDirectory = () => {
     setYouths((prev) => prev.map((y) => {
       if (y.id === youth.id) {
         const isPresent = record.attendanceStatus === "present" || record.attendanceStatus === "late";
-        const newAttendanceRate = isPresent
-          ? Math.min(100, y.attendanceRate + 2)
-          : Math.max(0, y.attendanceRate - 3);
+        const newAttendanceRate = isPresent ? Math.min(100, y.attendanceRate + 2) : Math.max(0, y.attendanceRate - 3);
 
         let engagementDelta = 0;
         if (isPresent) {
@@ -199,8 +197,8 @@ const YouthDirectory = () => {
     }));
 
     toast({
-      title: "Attendance Recorded",
-      description: `Attendance for ${youth.firstName} ${youth.lastName} saved successfully.`,
+      title: `${attendanceLabel} Recorded`,
+      description: `${attendanceLabel} for ${youth.firstName} ${youth.lastName} saved successfully.`,
     });
 
     setAttendanceYouth(null);
@@ -208,36 +206,34 @@ const YouthDirectory = () => {
 
   const handleExport = () => {
     if (!canExportRecords) {
-      showPermissionError("Exporting youth records");
+      showPermissionError(`Exporting ${memberLabel.toLowerCase()} records`);
       return;
     }
 
     const csvContent = [
       ["Name", "Email", "Phone", "Age Group", "Status", "Education", "Occupation", "Engagement"].join(","),
-      ...youths.map((y) =>
-        [
-          `${y.firstName} ${y.lastName}`,
-          y.email,
-          y.phone,
-          y.ageGroup,
-          y.status,
-          y.educationStatus,
-          y.occupation || "N/A",
-          y.engagementStatus,
-        ].join(",")
-      ),
+      ...youths.map((y) => [
+        `${y.firstName} ${y.lastName}`,
+        y.email,
+        y.phone,
+        y.ageGroup,
+        y.status,
+        y.educationStatus,
+        y.occupation || "N/A",
+        y.engagementStatus,
+      ].join(",")),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "youth_directory.csv";
+    a.download = `${memberLabel.toLowerCase().replace(/\s+/g, "_")}_directory.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     toast({
       title: "Export Complete",
-      description: `Exported ${youths.length} youth records to CSV.`,
+      description: `Exported ${youths.length} records to CSV.`,
     });
   };
 
@@ -254,11 +250,11 @@ const YouthDirectory = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="page-header mb-0">
-          <h1 className="page-title">Youth Directory</h1>
+          <h1 className="page-title">{memberLabel} Directory</h1>
           <p className="page-description">
             {activeMembership
-              ? `Manage ${activeMembership.churchName} youth members by role-based access.`
-              : "Manage and view all registered youth members"}
+              ? `Manage ${activeMembership.churchName} records by role-based access.`
+              : "Manage and view registered people"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -268,7 +264,7 @@ const YouthDirectory = () => {
           </Button>
           <Button size="sm" onClick={() => setIsAddDialogOpen(true)} disabled={!canEditRecords}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Youth
+            Add {memberLabel.slice(0, -1) || "Person"}
           </Button>
         </div>
       </div>
@@ -318,29 +314,17 @@ const YouthDirectory = () => {
             </SelectContent>
           </Select>
           <div className="flex items-center border rounded-lg p-0.5 bg-muted/50">
-            <Button
-              variant={viewMode === "table" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 px-2"
-              onClick={() => setViewMode("table")}
-            >
+            <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-8 px-2" onClick={() => setViewMode("table")}>
               <List className="h-4 w-4" />
             </Button>
-            <Button
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 px-2"
-              onClick={() => setViewMode("grid")}
-            >
+            <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="sm" className="h-8 px-2" onClick={() => setViewMode("grid")}>
               <Grid className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        Showing {filteredYouths.length} of {youths.length} youth members
-      </p>
+      <p className="text-sm text-muted-foreground">Showing {filteredYouths.length} of {youths.length} records</p>
 
       {viewMode === "table" && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -349,8 +333,8 @@ const YouthDirectory = () => {
               <TableRow className="bg-muted/50">
                 <TableHead className="w-[250px]">Name</TableHead>
                 <TableHead>Age Group</TableHead>
-                <TableHead>Small Group</TableHead>
-                <TableHead>Attendance</TableHead>
+                <TableHead>{groupLabel}</TableHead>
+                <TableHead>{attendanceLabel}</TableHead>
                 <TableHead>Engagement</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -358,35 +342,18 @@ const YouthDirectory = () => {
             </TableHeader>
             <TableBody>
               {filteredYouths.map((youth) => (
-                <TableRow
-                  key={youth.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => setSelectedYouth(youth)}
-                >
+                <TableRow key={youth.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedYouth(youth)}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
-                        <AvatarFallback
-                          className={cn(
-                            "text-sm font-medium",
-                            youth.engagementStatus === "engaged" && "bg-success/20 text-success",
-                            youth.engagementStatus === "at-risk" && "bg-warning/20 text-warning",
-                            youth.engagementStatus === "disengaged" && "bg-destructive/20 text-destructive"
-                          )}
-                        >
-                          {youth.firstName[0]}{youth.lastName[0]}
-                        </AvatarFallback>
+                        <AvatarFallback className={cn("text-sm font-medium", youth.engagementStatus === "engaged" && "bg-success/20 text-success", youth.engagementStatus === "at-risk" && "bg-warning/20 text-warning", youth.engagementStatus === "disengaged" && "bg-destructive/20 text-destructive")}>{youth.firstName[0]}{youth.lastName[0]}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium">
-                            {youth.firstName} {youth.lastName}
-                          </p>
+                          <p className="font-medium">{youth.firstName} {youth.lastName}</p>
                           {youth.engagementStatus === "at-risk" && (
                             <Tooltip>
-                              <TooltipTrigger>
-                                <AlertTriangle className="h-4 w-4 text-warning" />
-                              </TooltipTrigger>
+                              <TooltipTrigger><AlertTriangle className="h-4 w-4 text-warning" /></TooltipTrigger>
                               <TooltipContent>Needs follow-up</TooltipContent>
                             </Tooltip>
                           )}
@@ -396,50 +363,18 @@ const YouthDirectory = () => {
                     </div>
                   </TableCell>
                   <TableCell>{youth.ageGroup}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {youth.smallGroup || "—"}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{youth.smallGroup || "-"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full",
-                            youth.attendanceRate >= 80 && "bg-success",
-                            youth.attendanceRate >= 50 && youth.attendanceRate < 80 && "bg-warning",
-                            youth.attendanceRate < 50 && "bg-destructive"
-                          )}
-                          style={{ width: `${youth.attendanceRate}%` }}
-                        />
+                        <div className={cn("h-full rounded-full", youth.attendanceRate >= 80 && "bg-success", youth.attendanceRate >= 50 && youth.attendanceRate < 80 && "bg-warning", youth.attendanceRate < 50 && "bg-destructive")} style={{ width: `${youth.attendanceRate}%` }} />
                       </div>
                       <span className="text-sm text-muted-foreground">{youth.attendanceRate}%</span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={getEngagementBadge(youth.engagementStatus)}>
-                      {youth.engagementStatus.replace("-", " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={youth.status === "active" ? "default" : "secondary"}
-                      className={youth.status === "active" ? "bg-success/10 text-success border-success/20" : ""}
-                    >
-                      {youth.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedYouth(youth);
-                      }}
-                    >
-                      View
-                    </Button>
-                  </TableCell>
+                  <TableCell><Badge variant="outline" className={getEngagementBadge(youth.engagementStatus)}>{youth.engagementStatus.replace("-", " ")}</Badge></TableCell>
+                  <TableCell><Badge variant={youth.status === "active" ? "default" : "secondary"} className={youth.status === "active" ? "bg-success/10 text-success border-success/20" : ""}>{youth.status}</Badge></TableCell>
+                  <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedYouth(youth); }}>View</Button></TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -450,51 +385,27 @@ const YouthDirectory = () => {
       {viewMode === "grid" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredYouths.map((youth) => (
-            <div
-              key={youth.id}
-              className="p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer"
-              onClick={() => setSelectedYouth(youth)}
-            >
+            <div key={youth.id} className="p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer" onClick={() => setSelectedYouth(youth)}>
               <div className="flex items-start gap-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarFallback
-                    className={cn(
-                      "text-sm font-medium",
-                      youth.engagementStatus === "engaged" && "bg-success/20 text-success",
-                      youth.engagementStatus === "at-risk" && "bg-warning/20 text-warning",
-                      youth.engagementStatus === "disengaged" && "bg-destructive/20 text-destructive"
-                    )}
-                  >
-                    {youth.firstName[0]}{youth.lastName[0]}
-                  </AvatarFallback>
+                  <AvatarFallback className={cn("text-sm font-medium", youth.engagementStatus === "engaged" && "bg-success/20 text-success", youth.engagementStatus === "at-risk" && "bg-warning/20 text-warning", youth.engagementStatus === "disengaged" && "bg-destructive/20 text-destructive")}>{youth.firstName[0]}{youth.lastName[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium truncate">
-                      {youth.firstName} {youth.lastName}
-                    </p>
-                    {youth.engagementStatus === "at-risk" && (
-                      <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
-                    )}
+                    <p className="font-medium truncate">{youth.firstName} {youth.lastName}</p>
+                    {youth.engagementStatus === "at-risk" && <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />}
                   </div>
                   <p className="text-sm text-muted-foreground">{youth.ageGroup}</p>
                 </div>
               </div>
               <div className="mt-4 space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Attendance</span>
+                  <span className="text-muted-foreground">{attendanceLabel}</span>
                   <span className="font-medium">{youth.attendanceRate}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className={getEngagementBadge(youth.engagementStatus)}>
-                    {youth.engagementStatus.replace("-", " ")}
-                  </Badge>
-                  <Badge
-                    variant={youth.status === "active" ? "default" : "secondary"}
-                    className={youth.status === "active" ? "bg-success/10 text-success border-success/20" : ""}
-                  >
-                    {youth.status}
-                  </Badge>
+                  <Badge variant="outline" className={getEngagementBadge(youth.engagementStatus)}>{youth.engagementStatus.replace("-", " ")}</Badge>
+                  <Badge variant={youth.status === "active" ? "default" : "secondary"} className={youth.status === "active" ? "bg-success/10 text-success border-success/20" : ""}>{youth.status}</Badge>
                 </div>
               </div>
             </div>
@@ -502,17 +413,7 @@ const YouthDirectory = () => {
         </div>
       )}
 
-      <YouthProfileSheet
-        youth={selectedYouth}
-        open={!!selectedYouth}
-        onOpenChange={(open) => !open && setSelectedYouth(null)}
-        onEdit={handleEditYouth}
-        onDelete={handleDeleteYouth}
-        onRecordAttendance={handleRecordAttendance}
-        canEdit={canEditRecords}
-        canDelete={canManageChurch}
-        canRecordAttendance={canRecordAttendance}
-      />
+      <YouthProfileSheet youth={selectedYouth} open={!!selectedYouth} onOpenChange={(open) => !open && setSelectedYouth(null)} onEdit={handleEditYouth} onDelete={handleDeleteYouth} onRecordAttendance={handleRecordAttendance} canEdit={canEditRecords} canDelete={canManageChurch} canRecordAttendance={canRecordAttendance} />
 
       <AddYouthDialog
         open={isAddDialogOpen}
@@ -524,7 +425,7 @@ const YouthDirectory = () => {
           }
 
           if (!canEditRecords) {
-            showPermissionError("Adding or editing youth records");
+            showPermissionError(`Adding or editing ${memberLabel.toLowerCase()} records`);
             return;
           }
 
@@ -534,21 +435,9 @@ const YouthDirectory = () => {
         editingYouth={editingYouth}
       />
 
-      {attendanceYouth && (
-        <RecordAttendanceDialog
-          open={!!attendanceYouth}
-          onOpenChange={(open) => !open && setAttendanceYouth(null)}
-          youth={attendanceYouth}
-          onRecordAttendance={handleAttendanceRecorded}
-        />
-      )}
+      {attendanceYouth && <RecordAttendanceDialog open={!!attendanceYouth} onOpenChange={(open) => !open && setAttendanceYouth(null)} youth={attendanceYouth} onRecordAttendance={handleAttendanceRecorded} />}
 
-      <DeleteYouthDialog
-        open={!!deleteYouth}
-        onOpenChange={(open) => !open && setDeleteYouth(null)}
-        youth={deleteYouth}
-        onConfirmDelete={handleConfirmDelete}
-      />
+      <DeleteYouthDialog open={!!deleteYouth} onOpenChange={(open) => !open && setDeleteYouth(null)} youth={deleteYouth} onConfirmDelete={handleConfirmDelete} />
     </div>
   );
 };
