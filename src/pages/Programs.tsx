@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { mockPrograms, mockYouths, Program } from "@/data/mockData";
+import { mockPrograms, mockYouths } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -28,11 +28,11 @@ import {
   Heart,
   Megaphone,
   Crown,
-  Sun,
   GraduationCap,
   Briefcase,
   UserX,
 } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 import { cn } from "@/lib/utils";
 
 const categoryIcons: Record<string, typeof Music> = {
@@ -41,7 +41,16 @@ const categoryIcons: Record<string, typeof Music> = {
   fellowship: Heart,
   outreach: Megaphone,
   leadership: Crown,
-  sabbath_school: Sun,
+  sabbath_school: GraduationCap,
+};
+
+const categoryLabels: Record<string, string> = {
+  worship: "Gathering",
+  discipleship: "Learning",
+  fellowship: "Community",
+  outreach: "Outreach",
+  leadership: "Leadership",
+  sabbath_school: "Study Group",
 };
 
 const categoryColors: Record<string, string> = {
@@ -54,19 +63,22 @@ const categoryColors: Record<string, string> = {
 };
 
 const scheduleTypeLabels: Record<string, { label: string; className: string }> = {
-  sabbath: { label: "Sabbath", className: "bg-primary/10 text-primary border-primary/20" },
+  sabbath: { label: "Weekend", className: "bg-primary/10 text-primary border-primary/20" },
   weekday: { label: "Weekday", className: "bg-muted text-muted-foreground border-border" },
   special: { label: "Special Event", className: "bg-accent/10 text-accent border-accent/20" },
 };
 
-// Calculate member employment stats from mock data
 const memberStats = {
-  students: mockYouths.filter(y => y.educationStatus === 'high_school' || y.educationStatus === 'college').length,
-  employed: mockYouths.filter(y => y.educationStatus === 'working').length,
-  unemployed: mockYouths.filter(y => y.educationStatus === 'unemployed').length,
+  students: mockYouths.filter(y => y.educationStatus === "high_school" || y.educationStatus === "college").length,
+  employed: mockYouths.filter(y => y.educationStatus === "working").length,
+  unemployed: mockYouths.filter(y => y.educationStatus === "unemployed").length,
 };
 
 const Programs = () => {
+  const { activeMembership } = useAuth();
+  const programLabel = activeMembership?.programLabel ?? "Programs";
+  const memberLabel = activeMembership?.memberLabel ?? "People";
+  const primaryFocus = activeMembership?.primaryFocus ?? "Programs";
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [scheduleFilter, setScheduleFilter] = useState("all");
 
@@ -81,25 +93,21 @@ const Programs = () => {
   const avgEngagement = Math.round(
     mockPrograms.reduce((sum, p) => sum + p.engagementScore, 0) / mockPrograms.length
   );
-  const sabbathPrograms = mockPrograms.filter((p) => p.scheduleType === "sabbath").length;
+  const weekendPrograms = mockPrograms.filter((p) => p.scheduleType === "sabbath").length;
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="page-header mb-0">
-          <h1 className="page-title">AY Programs & Activities</h1>
-          <p className="page-description">
-            Track and manage Adventist Youth ministry programs
-          </p>
+          <h1 className="page-title">{programLabel} & Activities</h1>
+          <p className="page-description">Track and manage {primaryFocus.toLowerCase()} for your organization.</p>
         </div>
         <Button size="sm">
           <Plus className="h-4 w-4 mr-2" />
-          Add Program
+          Add {programLabel.slice(0, -1) || "Program"}
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -109,7 +117,7 @@ const Programs = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{activePrograms.length}</p>
-                <p className="text-sm text-muted-foreground">Active Programs</p>
+                <p className="text-sm text-muted-foreground">Active {programLabel}</p>
               </div>
             </div>
           </CardContent>
@@ -131,11 +139,11 @@ const Programs = () => {
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-accent/10">
-                <Sun className="h-6 w-6 text-accent" />
+                <Clock className="h-6 w-6 text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{sabbathPrograms}</p>
-                <p className="text-sm text-muted-foreground">Sabbath Programs</p>
+                <p className="text-2xl font-bold">{weekendPrograms}</p>
+                <p className="text-sm text-muted-foreground">Weekend {programLabel}</p>
               </div>
             </div>
           </CardContent>
@@ -155,11 +163,10 @@ const Programs = () => {
         </Card>
       </div>
 
-      {/* Member Status Overview */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Member Employment & Education Status</CardTitle>
-          <CardDescription>Overview of AY members by occupation status</CardDescription>
+          <CardTitle className="text-lg">{memberLabel} Status Overview</CardTitle>
+          <CardDescription>Overview by education and work status</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -191,7 +198,6 @@ const Programs = () => {
         </CardContent>
       </Card>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[180px]">
@@ -199,10 +205,10 @@ const Programs = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="worship">Worship</SelectItem>
-            <SelectItem value="sabbath_school">Sabbath School</SelectItem>
-            <SelectItem value="discipleship">Discipleship</SelectItem>
-            <SelectItem value="fellowship">Fellowship</SelectItem>
+            <SelectItem value="worship">Gathering</SelectItem>
+            <SelectItem value="sabbath_school">Study Group</SelectItem>
+            <SelectItem value="discipleship">Learning</SelectItem>
+            <SelectItem value="fellowship">Community</SelectItem>
             <SelectItem value="outreach">Outreach</SelectItem>
             <SelectItem value="leadership">Leadership</SelectItem>
           </SelectContent>
@@ -213,17 +219,14 @@ const Programs = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Schedules</SelectItem>
-            <SelectItem value="sabbath">Sabbath Programs</SelectItem>
-            <SelectItem value="weekday">Weekday Programs</SelectItem>
+            <SelectItem value="sabbath">Weekend</SelectItem>
+            <SelectItem value="weekday">Weekday</SelectItem>
             <SelectItem value="special">Special Events</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredPrograms.length} programs
-        </p>
+        <p className="text-sm text-muted-foreground">Showing {filteredPrograms.length} {programLabel.toLowerCase()}</p>
       </div>
 
-      {/* Program Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPrograms.map((program) => {
           const Icon = categoryIcons[program.category] || Calendar;
@@ -233,24 +236,16 @@ const Programs = () => {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "p-2 rounded-lg border",
-                        categoryColors[program.category]
-                      )}
-                    >
+                    <div className={cn("p-2 rounded-lg border", categoryColors[program.category])}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">{program.name}</CardTitle>
                       <div className="flex gap-1 mt-1 flex-wrap">
                         <Badge variant="outline" className="capitalize text-xs">
-                          {program.category.replace('_', ' ')}
+                          {categoryLabels[program.category] ?? program.category.replace("_", " ")}
                         </Badge>
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-xs", scheduleInfo.className)}
-                        >
+                        <Badge variant="outline" className={cn("text-xs", scheduleInfo.className)}>
                           {scheduleInfo.label}
                         </Badge>
                       </div>
@@ -258,20 +253,14 @@ const Programs = () => {
                   </div>
                   <Badge
                     variant={program.isActive ? "default" : "secondary"}
-                    className={
-                      program.isActive
-                        ? "bg-success/10 text-success border-success/20"
-                        : ""
-                    }
+                    className={program.isActive ? "bg-success/10 text-success border-success/20" : ""}
                   >
                     {program.isActive ? "Active" : "Past"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <CardDescription className="line-clamp-2">
-                  {program.description}
-                </CardDescription>
+                <CardDescription className="line-clamp-2">{program.description}</CardDescription>
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -280,18 +269,12 @@ const Programs = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>
-                      {program.participantCount}
-                      {program.maxCapacity && ` / ${program.maxCapacity}`} participants
-                    </span>
+                    <span>{program.participantCount}{program.maxCapacity && ` / ${program.maxCapacity}`} participants</span>
                   </div>
                 </div>
 
-                {/* Member Breakdown */}
                 <div className="p-3 rounded-lg bg-muted/50 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Member Status Breakdown
-                  </p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status Breakdown</p>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
                       <div className="flex items-center justify-center gap-1">
@@ -326,9 +309,7 @@ const Programs = () => {
                 </div>
 
                 <div className="pt-2">
-                  <Button variant="outline" size="sm" className="w-full">
-                    View Details
-                  </Button>
+                  <Button variant="outline" size="sm" className="w-full">View Details</Button>
                 </div>
               </CardContent>
             </Card>
