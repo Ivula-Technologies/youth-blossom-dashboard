@@ -1,4 +1,4 @@
-// Mock data for Youth Ministry Dashboard
+// Demo data for Ivula Canopy. Keep user-facing examples organization-neutral.
 
 export interface Youth {
   id: string;
@@ -14,13 +14,13 @@ export interface Youth {
   occupation?: string;
   joinDate: string;
   status: 'active' | 'inactive';
-  engagementScore: number; // 0-100
+  engagementScore: number;
   engagementStatus: 'engaged' | 'at-risk' | 'disengaged';
   smallGroup?: string;
   mentor?: string;
   leadershipLevel: 'none' | 'emerging' | 'developing' | 'established';
   discipleshipStatus: 'new_believer' | 'growing' | 'mature' | 'leader';
-  attendanceRate: number; // percentage
+  attendanceRate: number;
   lastAttendance?: string;
   notes?: string;
   ministryAreas: string[];
@@ -67,7 +67,6 @@ export interface SmallGroup {
   location: string;
 }
 
-// Generate realistic mock youths
 export const mockYouths: Youth[] = [
   {
     id: '1',
@@ -85,12 +84,12 @@ export const mockYouths: Youth[] = [
     engagementScore: 92,
     engagementStatus: 'engaged',
     smallGroup: 'Young Adults Connect',
-    mentor: 'Pastor Michael',
+    mentor: 'Maya Roberts',
     leadershipLevel: 'developing',
     discipleshipStatus: 'mature',
     attendanceRate: 95,
     lastAttendance: '2026-01-26',
-    ministryAreas: ['Worship', 'Youth Outreach'],
+    ministryAreas: ['Welcome Team', 'Community Outreach'],
     ageGroup: '19-24',
   },
   {
@@ -107,12 +106,12 @@ export const mockYouths: Youth[] = [
     status: 'active',
     engagementScore: 78,
     engagementStatus: 'engaged',
-    smallGroup: 'Teen Warriors',
+    smallGroup: 'Teen Leadership Circle',
     leadershipLevel: 'emerging',
     discipleshipStatus: 'growing',
     attendanceRate: 82,
     lastAttendance: '2026-01-26',
-    ministryAreas: ['Media', 'Welcome Team'],
+    ministryAreas: ['Media', 'Event Support'],
     ageGroup: '16-18',
   },
   {
@@ -131,12 +130,12 @@ export const mockYouths: Youth[] = [
     engagementScore: 88,
     engagementStatus: 'engaged',
     smallGroup: 'Young Professionals',
-    mentor: 'Deacon James',
+    mentor: 'Jordan Ellis',
     leadershipLevel: 'established',
     discipleshipStatus: 'leader',
     attendanceRate: 90,
     lastAttendance: '2026-01-19',
-    ministryAreas: ['Creative Arts', 'Discipleship'],
+    ministryAreas: ['Creative Team', 'Mentorship'],
     ageGroup: '25-30',
   },
   {
@@ -153,12 +152,12 @@ export const mockYouths: Youth[] = [
     status: 'active',
     engagementScore: 45,
     engagementStatus: 'at-risk',
-    smallGroup: 'Teen Warriors',
+    smallGroup: 'Teen Leadership Circle',
     leadershipLevel: 'none',
     discipleshipStatus: 'new_believer',
     attendanceRate: 55,
     lastAttendance: '2026-01-05',
-    notes: 'Missing several services, needs follow-up',
+    notes: 'Missed several activities, needs follow-up',
     ministryAreas: [],
     ageGroup: '16-18',
   },
@@ -178,12 +177,12 @@ export const mockYouths: Youth[] = [
     engagementScore: 85,
     engagementStatus: 'engaged',
     smallGroup: 'Young Adults Connect',
-    mentor: 'Sister Grace',
+    mentor: 'Grace Walker',
     leadershipLevel: 'developing',
     discipleshipStatus: 'mature',
     attendanceRate: 88,
     lastAttendance: '2026-01-26',
-    ministryAreas: ['Children\'s Ministry', 'Worship'],
+    ministryAreas: ['Family Support', 'Community Gathering'],
     ageGroup: '19-24',
   },
   {
@@ -200,12 +199,12 @@ export const mockYouths: Youth[] = [
     status: 'active',
     engagementScore: 72,
     engagementStatus: 'engaged',
-    smallGroup: 'Junior Youth',
+    smallGroup: 'Junior Cohort',
     leadershipLevel: 'none',
     discipleshipStatus: 'growing',
     attendanceRate: 75,
     lastAttendance: '2026-01-26',
-    ministryAreas: ['Ushering'],
+    ministryAreas: ['Hospitality'],
     ageGroup: '13-15',
   },
   {
@@ -251,7 +250,7 @@ export const mockYouths: Youth[] = [
     discipleshipStatus: 'growing',
     attendanceRate: 70,
     lastAttendance: '2026-01-19',
-    ministryAreas: ['Sound/Tech', 'Youth Outreach'],
+    ministryAreas: ['Tech Team', 'Community Outreach'],
     ageGroup: '19-24',
   },
   {
@@ -268,12 +267,12 @@ export const mockYouths: Youth[] = [
     status: 'active',
     engagementScore: 38,
     engagementStatus: 'at-risk',
-    smallGroup: 'Teen Warriors',
+    smallGroup: 'Teen Leadership Circle',
     leadershipLevel: 'none',
     discipleshipStatus: 'new_believer',
     attendanceRate: 45,
     lastAttendance: '2025-12-22',
-    notes: 'Family issues affecting attendance',
+    notes: 'Family issues affecting participation',
     ministryAreas: [],
     ageGroup: '16-18',
   },
@@ -293,12 +292,12 @@ export const mockYouths: Youth[] = [
     engagementScore: 95,
     engagementStatus: 'engaged',
     smallGroup: 'Young Professionals',
-    mentor: 'Pastor Michael',
+    mentor: 'Maya Roberts',
     leadershipLevel: 'established',
     discipleshipStatus: 'leader',
     attendanceRate: 92,
     lastAttendance: '2026-01-26',
-    ministryAreas: ['Discipleship', 'Media', 'Leadership Development'],
+    ministryAreas: ['Mentorship', 'Media', 'Leadership Development'],
     ageGroup: '25-30',
   },
   {
@@ -315,12 +314,12 @@ export const mockYouths: Youth[] = [
     status: 'active',
     engagementScore: 80,
     engagementStatus: 'engaged',
-    smallGroup: 'Junior Youth',
+    smallGroup: 'Junior Cohort',
     leadershipLevel: 'none',
     discipleshipStatus: 'growing',
     attendanceRate: 85,
     lastAttendance: '2026-01-26',
-    ministryAreas: ['Choir'],
+    ministryAreas: ['Creative Team'],
     ageGroup: '13-15',
   },
   {
@@ -344,7 +343,7 @@ export const mockYouths: Youth[] = [
     attendanceRate: 60,
     lastAttendance: '2026-01-12',
     notes: 'Busy with exams, check in after finals',
-    ministryAreas: ['Worship'],
+    ministryAreas: ['Community Gathering'],
     ageGroup: '19-24',
   },
 ];
@@ -352,15 +351,15 @@ export const mockYouths: Youth[] = [
 export const mockPrograms: Program[] = [
   {
     id: '1',
-    name: 'Sabbath Divine Service',
-    description: 'Weekly Sabbath worship gathering for all AY members ages 13-30',
+    name: 'Community Gathering',
+    description: 'Weekly gathering for members, volunteers, and participants',
     category: 'worship',
     startDate: '2020-01-01',
     isActive: true,
     participantCount: 45,
     maxCapacity: 60,
-    leader: 'Pastor Michael',
-    schedule: 'Sabbath at 11:00 AM',
+    leader: 'Maya Roberts',
+    schedule: 'Weekly at 11:00 AM',
     scheduleType: 'sabbath',
     averageAttendance: 38,
     engagementScore: 85,
@@ -368,15 +367,15 @@ export const mockPrograms: Program[] = [
   },
   {
     id: '2',
-    name: 'AY Sabbath School',
-    description: 'Interactive Bible study using the Sabbath School quarterly',
+    name: 'Learning Circle',
+    description: 'Interactive discussion and development session for participants',
     category: 'sabbath_school',
     startDate: '2020-01-01',
     isActive: true,
     participantCount: 42,
     maxCapacity: 50,
-    leader: 'Elder Thompson',
-    schedule: 'Sabbath at 9:30 AM',
+    leader: 'Jordan Ellis',
+    schedule: 'Weekly at 9:30 AM',
     scheduleType: 'sabbath',
     averageAttendance: 35,
     engagementScore: 82,
@@ -384,14 +383,14 @@ export const mockPrograms: Program[] = [
   },
   {
     id: '3',
-    name: 'Youth Bible Study',
-    description: 'Mid-week deep dive into Scripture and Spirit of Prophecy',
+    name: 'Mentorship Session',
+    description: 'Mid-week coaching and peer support for members',
     category: 'discipleship',
     startDate: '2020-03-15',
     isActive: true,
     participantCount: 28,
     maxCapacity: 35,
-    leader: 'Deacon James',
+    leader: 'Jordan Ellis',
     schedule: 'Wednesdays at 7:00 PM',
     scheduleType: 'weekday',
     averageAttendance: 22,
@@ -401,13 +400,13 @@ export const mockPrograms: Program[] = [
   {
     id: '4',
     name: 'Community Service Day',
-    description: 'Monthly community service projects after Sabbath',
+    description: 'Monthly service project with local partners',
     category: 'outreach',
     startDate: '2021-06-01',
     isActive: true,
     participantCount: 20,
-    leader: 'Sister Grace',
-    schedule: 'First Sunday of each month',
+    leader: 'Grace Walker',
+    schedule: 'First week of each month',
     scheduleType: 'weekday',
     averageAttendance: 15,
     engagementScore: 72,
@@ -415,15 +414,15 @@ export const mockPrograms: Program[] = [
   },
   {
     id: '5',
-    name: 'AY Program (Sundown Worship)',
-    description: 'Adventist Youth hour with music, testimonies, and spiritual activities',
+    name: 'Connection Night',
+    description: 'Music, stories, peer support, and community-building activities',
     category: 'fellowship',
     startDate: '2019-09-01',
     isActive: true,
     participantCount: 35,
     maxCapacity: 50,
     leader: 'Marcus Williams',
-    schedule: 'Sabbath Afternoon (After Sundown)',
+    schedule: 'Weekend afternoons',
     scheduleType: 'sabbath',
     averageAttendance: 30,
     engagementScore: 90,
@@ -431,15 +430,15 @@ export const mockPrograms: Program[] = [
   },
   {
     id: '6',
-    name: 'Master Guide Training',
-    description: 'Leadership training program for emerging Pathfinder and AY leaders',
+    name: 'Leadership Lab',
+    description: 'Leadership training program for emerging team leads',
     category: 'leadership',
     startDate: '2022-01-15',
     isActive: true,
     participantCount: 12,
     maxCapacity: 15,
-    leader: 'Pastor Michael',
-    schedule: 'Sundays at 2:00 PM (Bi-weekly)',
+    leader: 'Maya Roberts',
+    schedule: 'Bi-weekly at 2:00 PM',
     scheduleType: 'weekday',
     averageAttendance: 10,
     engagementScore: 95,
@@ -447,14 +446,14 @@ export const mockPrograms: Program[] = [
   },
   {
     id: '7',
-    name: 'Prayer & Fasting Fellowship',
-    description: 'Weekly prayer meeting focusing on spiritual growth and intercession',
+    name: 'Wellbeing Check-In',
+    description: 'Weekly support space focused on wellbeing, reflection, and care',
     category: 'discipleship',
     startDate: '2023-01-01',
     isActive: true,
     participantCount: 18,
-    leader: 'Deaconess Martha',
-    schedule: 'Fridays at 6:00 PM (Before Sabbath)',
+    leader: 'Grace Walker',
+    schedule: 'Fridays at 6:00 PM',
     scheduleType: 'weekday',
     averageAttendance: 14,
     engagementScore: 88,
@@ -462,15 +461,15 @@ export const mockPrograms: Program[] = [
   },
   {
     id: '8',
-    name: 'Youth Camp Meeting 2025',
-    description: 'Annual youth retreat with worship, seminars, and fellowship activities',
+    name: 'Annual Community Retreat',
+    description: 'Annual retreat with workshops, service projects, and community activities',
     category: 'fellowship',
     startDate: '2025-07-15',
     endDate: '2025-07-20',
     isActive: false,
     participantCount: 40,
     maxCapacity: 50,
-    leader: 'Youth Ministry Team',
+    leader: 'Program Team',
     schedule: 'July 15-20, 2025',
     scheduleType: 'special',
     averageAttendance: 40,
@@ -487,11 +486,11 @@ export const mockSmallGroups: SmallGroup[] = [
     memberCount: 12,
     meetingDay: 'Tuesday',
     meetingTime: '7:00 PM',
-    location: 'Church Fellowship Hall',
+    location: 'Community Room',
   },
   {
     id: '2',
-    name: 'Teen Warriors',
+    name: 'Teen Leadership Circle',
     leader: 'Marcus Williams',
     memberCount: 8,
     meetingDay: 'Thursday',
@@ -505,20 +504,19 @@ export const mockSmallGroups: SmallGroup[] = [
     memberCount: 10,
     meetingDay: 'Wednesday',
     meetingTime: '7:30 PM',
-    location: 'Coffee House Ministry Center',
+    location: 'Partner Cafe',
   },
   {
     id: '4',
-    name: 'Junior Youth',
+    name: 'Junior Cohort',
     leader: 'Sarah Johnson',
     memberCount: 6,
     meetingDay: 'Saturday',
     meetingTime: '4:00 PM',
-    location: 'Youth Room',
+    location: 'Learning Studio',
   },
 ];
 
-// Dashboard metrics
 export const dashboardMetrics = {
   totalYouths: 48,
   activeYouths: 42,
@@ -530,7 +528,6 @@ export const dashboardMetrics = {
   activePrograms: 5,
 };
 
-// Attendance trend data (last 12 months)
 export const attendanceTrendData = [
   { month: 'Feb 25', attendance: 35, capacity: 50 },
   { month: 'Mar 25', attendance: 38, capacity: 50 },
@@ -546,16 +543,14 @@ export const attendanceTrendData = [
   { month: 'Jan 26', attendance: 42, capacity: 60 },
 ];
 
-// Program participation data
 export const programParticipationData = [
-  { name: 'Sunday Service', participants: 45, category: 'worship' },
-  { name: 'Bible Study', participants: 28, category: 'discipleship' },
-  { name: 'Fellowship Night', participants: 35, category: 'fellowship' },
+  { name: 'Community Gathering', participants: 45, category: 'worship' },
+  { name: 'Learning Circle', participants: 28, category: 'discipleship' },
+  { name: 'Connection Night', participants: 35, category: 'fellowship' },
   { name: 'Outreach', participants: 20, category: 'outreach' },
   { name: 'Leadership', participants: 12, category: 'leadership' },
 ];
 
-// Age distribution
 export const ageDistributionData = [
   { ageGroup: '13-15', count: 8, percentage: 17 },
   { ageGroup: '16-18', count: 14, percentage: 29 },
@@ -563,7 +558,6 @@ export const ageDistributionData = [
   { ageGroup: '25-30', count: 8, percentage: 17 },
 ];
 
-// Engagement distribution
 export const engagementDistributionData = [
   { status: 'Engaged', count: 35, percentage: 73 },
   { status: 'At Risk', count: 8, percentage: 17 },
