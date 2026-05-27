@@ -18,7 +18,7 @@ export type ChurchMembershipStatus = "active" | "invited" | "disabled";
 export type JoinableChurchRole = "leader" | "volunteer" | "viewer";
 
 export type SignupIntent =
-  | { type: "register_church"; churchName: string }
+  | { type: "register_church"; churchName: string; organizationType?: string }
   | { type: "join_church"; joinCode: string; role: JoinableChurchRole };
 
 export interface OrganizationLabels {
@@ -98,11 +98,59 @@ const defaultLabels: OrganizationLabels = {
   primaryFocus: "Youth Programs",
 };
 
+const organizationPresetLabels: Record<string, OrganizationLabels> = {
+  church: {
+    organizationType: "church",
+    memberLabel: "Members",
+    programLabel: "Ministries",
+    groupLabel: "Small Groups",
+    attendanceLabel: "Attendance",
+    primaryFocus: "Church Programs",
+  },
+  nonprofit: {
+    organizationType: "nonprofit",
+    memberLabel: "Participants",
+    programLabel: "Programs",
+    groupLabel: "Teams",
+    attendanceLabel: "Participation",
+    primaryFocus: "Community Impact",
+  },
+  school: {
+    organizationType: "school",
+    memberLabel: "Students",
+    programLabel: "Activities",
+    groupLabel: "Clubs",
+    attendanceLabel: "Attendance",
+    primaryFocus: "Student Engagement",
+  },
+  club: {
+    organizationType: "club",
+    memberLabel: "Members",
+    programLabel: "Activities",
+    groupLabel: "Committees",
+    attendanceLabel: "Participation",
+    primaryFocus: "Member Engagement",
+  },
+  youth_program: defaultLabels,
+  other: {
+    organizationType: "other",
+    memberLabel: "People",
+    programLabel: "Programs",
+    groupLabel: "Teams",
+    attendanceLabel: "Engagement",
+    primaryFocus: "Organizational Health",
+  },
+};
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getJoinedChurch(row: MembershipRow): ChurchRow | null {
   if (Array.isArray(row.churches)) return row.churches[0] ?? null;
   return row.churches ?? null;
+}
+
+function getLabelsForOrganizationType(organizationType?: string): OrganizationLabels {
+  return organizationPresetLabels[organizationType ?? defaultLabels.organizationType] ?? defaultLabels;
 }
 
 function toLabels(church?: ChurchRow | null): OrganizationLabels {
@@ -182,6 +230,25 @@ async function createFirstChurchForUser(session: SupabaseSession, churchNameOver
   return refreshedMemberships.length > 0 ? refreshedMemberships : createdMemberships;
 }
 
+async function configureCreatedOrganization(membership: ChurchMembership | undefined, organizationType?: string) {
+  if (!membership?.churchId || !organizationType) return;
+
+  const labels = getLabelsForOrganizationType(organizationType);
+  await supabaseRequest("rpc/update_organization_settings", {
+    method: "POST",
+    body: JSON.stringify({
+      target_church_id: membership.churchId,
+      requested_name: membership.churchName,
+      requested_organization_type: labels.organizationType,
+      requested_member_label: labels.memberLabel,
+      requested_program_label: labels.programLabel,
+      requested_group_label: labels.groupLabel,
+      requested_attendance_label: labels.attendanceLabel,
+      requested_primary_focus: labels.primaryFocus,
+    }),
+  });
+}
+
 async function joinChurchForUser(intent: Extract<SignupIntent, { type: "join_church" }>): Promise<ChurchMembership[]> {
   const rows = await supabaseRequest<CreatedChurchMembershipRow[]>("rpc/join_church_for_current_user", {
     method: "POST",
@@ -195,7 +262,10 @@ async function joinChurchForUser(intent: Extract<SignupIntent, { type: "join_chu
 
 async function applySignupIntent(session: SupabaseSession, intent: SignupIntent): Promise<ChurchMembership[]> {
   if (intent.type === "register_church") {
-    return createFirstChurchForUser(session, intent.churchName);
+    const createdMemberships = await createFirstChurchForUser(session, intent.churchName);
+    await configureCreatedOrganization(createdMemberships[0], intent.organizationType);
+    const refreshedMemberships = await fetchMemberships();
+    return refreshedMemberships.length > 0 ? refreshedMemberships : createdMemberships;
   }
 
   return joinChurchForUser(intent);
