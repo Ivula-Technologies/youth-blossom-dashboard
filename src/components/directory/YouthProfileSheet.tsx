@@ -153,7 +153,14 @@ export function YouthProfileSheet({
             </Button>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => {
+                window.location.href = `mailto:${youth.email}?subject=${encodeURIComponent("Checking in")}`;
+              }}
+            >
               <MessageSquare className="h-4 w-4 mr-2" />
               Message
             </Button>

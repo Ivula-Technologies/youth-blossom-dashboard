@@ -45,6 +45,8 @@ import {
 import { Youth, mockPrograms } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { STORAGE_KEYS } from "@/data/attendanceRecords";
 
 const attendanceSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -73,9 +75,10 @@ export function RecordAttendanceDialog({
   youth,
   onRecordAttendance 
 }: RecordAttendanceDialogProps) {
-  const sabbathPrograms = mockPrograms.filter(p => p.scheduleType === "sabbath" && p.isActive);
-  const weekdayPrograms = mockPrograms.filter(p => p.scheduleType === "weekday" && p.isActive);
-  const specialPrograms = mockPrograms.filter(p => p.scheduleType === "special");
+  const [programs] = useLocalStorage(STORAGE_KEYS.PROGRAMS, mockPrograms);
+  const weekendPrograms = programs.filter(p => p.scheduleType === "sabbath" && p.isActive);
+  const weekdayPrograms = programs.filter(p => p.scheduleType === "weekday" && p.isActive);
+  const specialPrograms = programs.filter(p => p.scheduleType === "special");
 
   const form = useForm<AttendanceFormValues>({
     resolver: zodResolver(attendanceSchema),
@@ -161,12 +164,12 @@ export function RecordAttendanceDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {sabbathPrograms.length > 0 && (
+                          {weekendPrograms.length > 0 && (
                             <>
                               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                                Sabbath Programs
+                                Weekend Programs
                               </div>
-                              {sabbathPrograms.map(p => (
+                              {weekendPrograms.map(p => (
                                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                               ))}
                             </>

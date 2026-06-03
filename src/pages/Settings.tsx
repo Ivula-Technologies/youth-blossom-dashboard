@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { mockPrograms, mockYouths } from "@/data/mockData";
+import { downloadCsv, downloadExcel, downloadTextFile } from "@/lib/exportUtils";
 
 interface OrganizationSettingsRow {
   id: string;
@@ -151,6 +153,47 @@ const Settings = () => {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  const peopleRows = mockYouths.map((person) => ({
+    Name: `${person.firstName} ${person.lastName}`,
+    Email: person.email,
+    Phone: person.phone,
+    Status: person.status,
+    Engagement: person.engagementStatus,
+    "Attendance Rate": person.attendanceRate,
+  }));
+
+  const programRows = mockPrograms.map((program) => ({
+    Name: program.name,
+    Category: program.category,
+    Schedule: program.schedule,
+    Leader: program.leader,
+    Participants: program.participantCount,
+  }));
+
+  function exportAllData(format: "csv" | "excel") {
+    const rows = [
+      ...peopleRows.map((row) => ({ Type: memberLabel, ...row })),
+      ...programRows.map((row) => ({ Type: programLabel, ...row })),
+    ];
+
+    if (format === "excel") {
+      downloadExcel(`${organizationName || "Organization"} backup`, rows);
+    } else {
+      downloadCsv(`${organizationName || "Organization"} backup`, rows);
+    }
+
+    toast({ title: "Backup downloaded" });
+  }
+
+  function exportJsonBackup() {
+    downloadTextFile(
+      `${(organizationName || "organization").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-backup.json`,
+      JSON.stringify({ organizationName, organizationType, people: mockYouths, programs: mockPrograms }, null, 2),
+      "application/json;charset=utf-8"
+    );
+    toast({ title: "JSON backup downloaded" });
   }
 
   return (
@@ -357,7 +400,16 @@ const Settings = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">{integration.description}</p>
                   </div>
-                  <Button variant={integration.connected ? "outline" : "default"} size="sm">
+                  <Button
+                    variant={integration.connected ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => toast({
+                      title: integration.connected ? "Integration settings" : "Integration request saved",
+                      description: integration.connected
+                        ? `${integration.name} is ready for configuration in the next release.`
+                        : `${integration.name} has been marked for setup. API connection screens are coming next.`,
+                    })}
+                  >
                     {integration.connected ? "Configure" : "Connect"}
                     <ExternalLink className="h-4 w-4 ml-2" />
                   </Button>
@@ -387,9 +439,9 @@ const Settings = () => {
                     <p className="text-sm text-muted-foreground">Upload records from CSV or Excel files</p>
                   </div>
                 </div>
-                <Button variant="outline">
+                <Button variant="outline" onClick={exportJsonBackup}>
                   <Upload className="h-4 w-4 mr-2" />
-                  Upload File
+                  Download JSON Backup
                 </Button>
               </div>
 
@@ -404,8 +456,8 @@ const Settings = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline">Export as CSV</Button>
-                  <Button variant="outline">Export as Excel</Button>
+                  <Button variant="outline" onClick={() => exportAllData("csv")}>Export as CSV</Button>
+                  <Button variant="outline" onClick={() => exportAllData("excel")}>Export as Excel</Button>
                 </div>
               </div>
 
@@ -414,7 +466,17 @@ const Settings = () => {
               <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5 space-y-3">
                 <p className="font-medium text-destructive">Danger Zone</p>
                 <p className="text-sm text-muted-foreground">These actions are irreversible. Please proceed with caution.</p>
-                <Button variant="destructive" size="sm">Clear All Test Data</Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => toast({
+                    title: "Protected action",
+                    description: "Clearing data will be enabled after a confirmation workflow is added.",
+                    variant: "destructive",
+                  })}
+                >
+                  Clear All Test Data
+                </Button>
               </div>
             </CardContent>
           </Card>

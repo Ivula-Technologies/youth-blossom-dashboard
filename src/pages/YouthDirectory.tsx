@@ -264,7 +264,7 @@ const YouthDirectory = () => {
           </Button>
           <Button size="sm" onClick={() => setIsAddDialogOpen(true)} disabled={!canEditRecords}>
             <Plus className="h-4 w-4 mr-2" />
-            Add {memberLabel.slice(0, -1) || "Person"}
+            Add Record
           </Button>
         </div>
       </div>

@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
+import { mockPrograms, mockYouths } from "@/data/mockData";
+import { downloadCsv, downloadExcel, downloadHtmlReport } from "@/lib/exportUtils";
+import { toast } from "@/hooks/use-toast";
 
 const recentExportDates = [
   { suffix: "Engagement Report.pdf", date: "2026-01-26", size: "245 KB" },
@@ -38,7 +41,7 @@ const Reports = () => {
   const attendanceLabel = activeMembership?.attendanceLabel ?? "Attendance";
   const primaryFocus = activeMembership?.primaryFocus ?? "Organizational Health";
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
-  const [exportFormat, setExportFormat] = useState("pdf");
+  const [exportFormat, setExportFormat] = useState("html");
   const [dateRange, setDateRange] = useState("month");
   const [includeCharts, setIncludeCharts] = useState(true);
   const [includeRawData, setIncludeRawData] = useState(false);
@@ -99,13 +102,51 @@ const Reports = () => {
     name: `${primaryFocus} ${file.suffix}`,
   }));
 
+  const peopleRows = mockYouths.map((person) => ({
+    Name: `${person.firstName} ${person.lastName}`,
+    Email: person.email,
+    Phone: person.phone,
+    Status: person.status,
+    Engagement: person.engagementStatus,
+    "Engagement Score": person.engagementScore,
+    "Attendance Rate": person.attendanceRate,
+    Group: person.smallGroup ?? "",
+  }));
+
+  const programRows = mockPrograms.map((program) => ({
+    Name: program.name,
+    Category: program.category,
+    Schedule: program.schedule,
+    Leader: program.leader,
+    Active: program.isActive,
+    Participants: program.participantCount,
+    "Average Attendance": program.averageAttendance,
+    "Engagement Score": program.engagementScore,
+  }));
+
+  const buildReportRows = () => {
+    if (selectedReport === "program-impact" || selectedReport === "attendance") return programRows;
+    return peopleRows;
+  };
+
+  const downloadRows = (filenameBase: string, rows: Record<string, string | number | boolean>[]) => {
+    if (exportFormat === "csv") {
+      downloadCsv(filenameBase, rows);
+    } else if (exportFormat === "xlsx") {
+      downloadExcel(filenameBase, rows);
+    } else {
+      downloadHtmlReport(filenameBase, filenameBase, rows);
+    }
+  };
+
   const handleGenerate = () => {
-    console.log("Generating report:", {
-      report: selectedReport,
-      format: exportFormat,
-      dateRange,
-      includeCharts,
-      includeRawData,
+    const report = reportTemplates.find((item) => item.id === selectedReport);
+    if (!report) return;
+
+    downloadRows(`${activeMembership?.churchName ?? "Organization"} ${report.name}`, buildReportRows());
+    toast({
+      title: "Report downloaded",
+      description: `${report.name} has been generated for ${dateRange.replace("-", " ")}.`,
     });
   };
 
@@ -190,7 +231,7 @@ const Reports = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pdf">PDF Document</SelectItem>
+                        <SelectItem value="html">Printable HTML Report</SelectItem>
                         <SelectItem value="csv">CSV Spreadsheet</SelectItem>
                         <SelectItem value="xlsx">Excel Workbook</SelectItem>
                       </SelectContent>
@@ -243,11 +284,25 @@ const Reports = () => {
               <CardDescription>Export operational data at once</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  downloadCsv(`${activeMembership?.churchName ?? "Organization"} ${memberLabel} Data`, peopleRows);
+                  toast({ title: `${memberLabel} export downloaded` });
+                }}
+              >
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Export {memberLabel} Data (CSV)
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  downloadCsv(`${activeMembership?.churchName ?? "Organization"} ${programLabel} Data`, programRows);
+                  toast({ title: `${programLabel} export downloaded` });
+                }}
+              >
                 <FilePlus className="h-4 w-4 mr-2" />
                 Export {programLabel} Data (CSV)
               </Button>
@@ -279,7 +334,14 @@ const Reports = () => {
                     </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    downloadRows(file.name, file.name.includes("Participation") ? programRows : peopleRows);
+                    toast({ title: "Export downloaded", description: file.name });
+                  }}
+                >
                   <Download className="h-4 w-4" />
                 </Button>
               </div>

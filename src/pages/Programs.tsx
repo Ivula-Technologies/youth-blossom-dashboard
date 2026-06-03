@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { mockPrograms, mockYouths } from "@/data/mockData";
+import { mockPrograms, mockYouths, type Program } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Calendar,
   Users,
   TrendingUp,
@@ -34,6 +45,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { cn } from "@/lib/utils";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { STORAGE_KEYS } from "@/data/attendanceRecords";
+import { toast } from "@/hooks/use-toast";
 
 const categoryIcons: Record<string, typeof Music> = {
   worship: Music,
@@ -79,21 +93,78 @@ const Programs = () => {
   const programLabel = activeMembership?.programLabel ?? "Programs";
   const memberLabel = activeMembership?.memberLabel ?? "People";
   const primaryFocus = activeMembership?.primaryFocus ?? "Programs";
+  const [programs, setPrograms] = useLocalStorage<Program[]>(STORAGE_KEYS.PROGRAMS, mockPrograms);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [scheduleFilter, setScheduleFilter] = useState("all");
+  const [isProgramDialogOpen, setIsProgramDialogOpen] = useState(false);
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [programDraft, setProgramDraft] = useState({
+    name: "",
+    description: "",
+    category: "outreach" as Program["category"],
+    schedule: "",
+    scheduleType: "weekday" as Program["scheduleType"],
+    leader: "",
+    maxCapacity: "",
+  });
 
-  const filteredPrograms = mockPrograms.filter((program) => {
+  const filteredPrograms = programs.filter((program) => {
     const categoryMatch = categoryFilter === "all" || program.category === categoryFilter;
     const scheduleMatch = scheduleFilter === "all" || program.scheduleType === scheduleFilter;
     return categoryMatch && scheduleMatch;
   });
 
-  const activePrograms = mockPrograms.filter((p) => p.isActive);
-  const totalParticipants = mockPrograms.reduce((sum, p) => sum + p.participantCount, 0);
+  const activePrograms = programs.filter((p) => p.isActive);
+  const totalParticipants = programs.reduce((sum, p) => sum + p.participantCount, 0);
   const avgEngagement = Math.round(
-    mockPrograms.reduce((sum, p) => sum + p.engagementScore, 0) / mockPrograms.length
+    programs.reduce((sum, p) => sum + p.engagementScore, 0) / Math.max(programs.length, 1)
   );
-  const weekendPrograms = mockPrograms.filter((p) => p.scheduleType === "sabbath").length;
+  const weekendPrograms = programs.filter((p) => p.scheduleType === "sabbath").length;
+
+  const openAddProgram = () => {
+    setProgramDraft({
+      name: "",
+      description: "",
+      category: "outreach",
+      schedule: "",
+      scheduleType: "weekday",
+      leader: "",
+      maxCapacity: "",
+    });
+    setIsProgramDialogOpen(true);
+  };
+
+  const saveProgram = () => {
+    if (!programDraft.name.trim() || !programDraft.description.trim()) {
+      toast({
+        title: "Program details needed",
+        description: `Add a name and description before saving this ${programLabel.toLowerCase()}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nextProgram: Program = {
+      id: crypto.randomUUID(),
+      name: programDraft.name.trim(),
+      description: programDraft.description.trim(),
+      category: programDraft.category,
+      startDate: new Date().toISOString().split("T")[0],
+      isActive: true,
+      participantCount: 0,
+      maxCapacity: programDraft.maxCapacity ? Number(programDraft.maxCapacity) : undefined,
+      leader: programDraft.leader.trim() || "Unassigned",
+      schedule: programDraft.schedule.trim() || "Schedule not set",
+      scheduleType: programDraft.scheduleType,
+      averageAttendance: 0,
+      engagementScore: 0,
+      memberBreakdown: { students: 0, employed: 0, unemployed: 0 },
+    };
+
+    setPrograms((current) => [nextProgram, ...current]);
+    setIsProgramDialogOpen(false);
+    toast({ title: `${programLabel} saved`, description: `${nextProgram.name} is now available.` });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -102,9 +173,9 @@ const Programs = () => {
           <h1 className="page-title">{programLabel} & Activities</h1>
           <p className="page-description">Track and manage {primaryFocus.toLowerCase()} for your organization.</p>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={openAddProgram}>
           <Plus className="h-4 w-4 mr-2" />
-          Add {programLabel.slice(0, -1) || "Program"}
+          Add New
         </Button>
       </div>
 
@@ -309,13 +380,111 @@ const Programs = () => {
                 </div>
 
                 <div className="pt-2">
-                  <Button variant="outline" size="sm" className="w-full">View Details</Button>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setSelectedProgram(program)}>View Details</Button>
                 </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      <Dialog open={isProgramDialogOpen} onOpenChange={setIsProgramDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add {programLabel}</DialogTitle>
+            <DialogDescription>Create a program, activity, team rhythm, or event for this organization.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="program-name">Name</Label>
+              <Input id="program-name" value={programDraft.name} onChange={(event) => setProgramDraft((draft) => ({ ...draft, name: event.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="program-description">Description</Label>
+              <Textarea id="program-description" value={programDraft.description} onChange={(event) => setProgramDraft((draft) => ({ ...draft, description: event.target.value }))} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select value={programDraft.category} onValueChange={(value) => setProgramDraft((draft) => ({ ...draft, category: value as Program["category"] }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="worship">Gathering</SelectItem>
+                    <SelectItem value="sabbath_school">Study Group</SelectItem>
+                    <SelectItem value="discipleship">Learning</SelectItem>
+                    <SelectItem value="fellowship">Community</SelectItem>
+                    <SelectItem value="outreach">Outreach</SelectItem>
+                    <SelectItem value="leadership">Leadership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Schedule Type</Label>
+                <Select value={programDraft.scheduleType} onValueChange={(value) => setProgramDraft((draft) => ({ ...draft, scheduleType: value as Program["scheduleType"] }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sabbath">Weekend</SelectItem>
+                    <SelectItem value="weekday">Weekday</SelectItem>
+                    <SelectItem value="special">Special Event</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2 sm:col-span-1">
+                <Label htmlFor="program-leader">Lead</Label>
+                <Input id="program-leader" value={programDraft.leader} onChange={(event) => setProgramDraft((draft) => ({ ...draft, leader: event.target.value }))} />
+              </div>
+              <div className="space-y-2 sm:col-span-1">
+                <Label htmlFor="program-schedule">Schedule</Label>
+                <Input id="program-schedule" value={programDraft.schedule} onChange={(event) => setProgramDraft((draft) => ({ ...draft, schedule: event.target.value }))} placeholder="Tuesdays at 6 PM" />
+              </div>
+              <div className="space-y-2 sm:col-span-1">
+                <Label htmlFor="program-capacity">Capacity</Label>
+                <Input id="program-capacity" type="number" min="0" value={programDraft.maxCapacity} onChange={(event) => setProgramDraft((draft) => ({ ...draft, maxCapacity: event.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProgramDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveProgram}>Save {programLabel}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedProgram} onOpenChange={(open) => !open && setSelectedProgram(null)}>
+        <DialogContent>
+          {selectedProgram && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedProgram.name}</DialogTitle>
+                <DialogDescription>{selectedProgram.description}</DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Category</p>
+                  <p className="font-medium">{categoryLabels[selectedProgram.category]}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Schedule</p>
+                  <p className="font-medium">{selectedProgram.schedule}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Lead</p>
+                  <p className="font-medium">{selectedProgram.leader}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Participants</p>
+                  <p className="font-medium">{selectedProgram.participantCount}</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedProgram(null)}>Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

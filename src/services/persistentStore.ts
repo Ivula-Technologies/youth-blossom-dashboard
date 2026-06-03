@@ -1,4 +1,4 @@
-import type { Youth } from "@/data/mockData";
+import type { Program, Youth } from "@/data/mockData";
 import type { AttendanceRecord } from "@/data/attendanceRecords";
 import { STORAGE_KEYS } from "@/data/attendanceRecords";
 import { getActiveChurchId, isSupabaseConfigured, supabaseRequest } from "@/lib/supabaseRest";
@@ -44,6 +44,25 @@ interface AttendanceRow {
   activity_notes?: string | null;
   follow_up_notes?: string | null;
   recorded_at: string;
+}
+
+interface ProgramRow {
+  id: string;
+  church_id: string;
+  name: string;
+  description: string;
+  category: Program["category"];
+  start_date: string;
+  end_date?: string | null;
+  is_active: boolean;
+  participant_count: number;
+  max_capacity?: number | null;
+  leader: string;
+  schedule: string;
+  schedule_type: Program["scheduleType"];
+  average_attendance: number;
+  engagement_score: number;
+  member_breakdown: Program["memberBreakdown"];
 }
 
 function requireActiveChurchId() {
@@ -146,6 +165,47 @@ function fromAttendance(record: AttendanceRecord): AttendanceRow {
   };
 }
 
+function toProgram(row: ProgramRow): Program {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    startDate: row.start_date,
+    endDate: row.end_date ?? undefined,
+    isActive: row.is_active,
+    participantCount: row.participant_count,
+    maxCapacity: row.max_capacity ?? undefined,
+    leader: row.leader,
+    schedule: row.schedule,
+    scheduleType: row.schedule_type,
+    averageAttendance: row.average_attendance,
+    engagementScore: row.engagement_score,
+    memberBreakdown: row.member_breakdown ?? { students: 0, employed: 0, unemployed: 0 },
+  };
+}
+
+function fromProgram(program: Program): ProgramRow {
+  return {
+    id: program.id,
+    church_id: requireActiveChurchId(),
+    name: program.name,
+    description: program.description,
+    category: program.category,
+    start_date: program.startDate,
+    end_date: program.endDate ?? null,
+    is_active: program.isActive,
+    participant_count: program.participantCount,
+    max_capacity: program.maxCapacity ?? null,
+    leader: program.leader,
+    schedule: program.schedule,
+    schedule_type: program.scheduleType,
+    average_attendance: program.averageAttendance,
+    engagement_score: program.engagementScore,
+    member_breakdown: program.memberBreakdown,
+  };
+}
+
 async function replaceDeletedRows(table: string, nextIds: string[]) {
   const churchId = requireActiveChurchId();
   const existing = await supabaseRequest<Array<{ id: string }>>(
@@ -202,6 +262,28 @@ async function syncAttendance(records: AttendanceRecord[]) {
   );
 }
 
+async function loadPrograms(): Promise<Program[]> {
+  const churchId = requireActiveChurchId();
+  const rows = await supabaseRequest<ProgramRow[]>(
+    `programs?select=*&church_id=eq.${encodeURIComponent(churchId)}&order=created_at.desc`
+  );
+  return rows.map(toProgram);
+}
+
+async function syncPrograms(programs: Program[]) {
+  if (programs.length > 0) {
+    await supabaseRequest("programs?on_conflict=id", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify(programs.map(fromProgram)),
+    });
+  }
+  await replaceDeletedRows(
+    "programs",
+    programs.map((program) => program.id)
+  );
+}
+
 export async function loadPersistentValue<T>(key: string, fallback: T): Promise<T> {
   if (!isSupabaseConfigured || !getActiveChurchId()) return fallback;
 
@@ -211,6 +293,10 @@ export async function loadPersistentValue<T>(key: string, fallback: T): Promise<
 
   if (key === STORAGE_KEYS.ATTENDANCE_RECORDS) {
     return (await loadAttendance()) as T;
+  }
+
+  if (key === STORAGE_KEYS.PROGRAMS) {
+    return (await loadPrograms()) as T;
   }
 
   return fallback;
@@ -225,5 +311,9 @@ export async function syncPersistentValue<T>(key: string, value: T) {
 
   if (key === STORAGE_KEYS.ATTENDANCE_RECORDS) {
     await syncAttendance(value as AttendanceRecord[]);
+  }
+
+  if (key === STORAGE_KEYS.PROGRAMS) {
+    await syncPrograms(value as Program[]);
   }
 }
