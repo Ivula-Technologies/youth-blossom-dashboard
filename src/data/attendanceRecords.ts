@@ -17,7 +17,7 @@ export interface AttendanceRecord {
 
 // Storage keys
 export const STORAGE_KEYS = {
-  YOUTHS: 'youth_ministry_youths',
+  YOUTHS: 'ivula_canopy_people',
   PROGRAMS: 'ivula_canopy_programs',
-  ATTENDANCE_RECORDS: 'youth_ministry_attendance',
+  ATTENDANCE_RECORDS: 'ivula_canopy_attendance',
 } as const;

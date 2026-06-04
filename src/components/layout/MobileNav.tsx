@@ -8,6 +8,7 @@ import {
   FileText,
   Shield,
   UserCog,
+  Megaphone,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ const mainNavItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "People Directory", url: "/directory", icon: Users },
   { title: "Programs", url: "/programs", icon: Calendar },
+  { title: "Communications", url: "/communications", icon: Megaphone },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Reports", url: "/reports", icon: FileText },
 ];

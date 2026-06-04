@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import YouthDirectory from "./pages/YouthDirectory";
 import Programs from "./pages/Programs";
+import Communications from "./pages/Communications";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Team from "./pages/Team";
@@ -31,6 +32,7 @@ const App = () => (
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/directory" element={<YouthDirectory />} />
                 <Route path="/programs" element={<Programs />} />
+                <Route path="/communications" element={<Communications />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/team" element={<Team />} />
