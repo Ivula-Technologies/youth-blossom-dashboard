@@ -49,15 +49,10 @@ export function AppRouter() {
         <Route path="/programs" element={<Programs />} />
         <Route path="/communications" element={<Communications />} />
         <Route path="/analytics" element={<Analytics />} />
-        {canExportRecords && <Route path="/reports" element={<Reports />} />}
-        {canManageChurch && <Route path="/team" element={<Team />} />}
-        {canManageChurch && <Route path="/admin" element={<Admin />} />}
-        {canManageChurch && <Route path="/settings" element={<Settings />} />}
-        {/* Redirect non-admin attempts to restricted pages */}
-        <Route path="/reports" element={<Navigate to="/" replace />} />
-        <Route path="/team" element={<Navigate to="/" replace />} />
-        <Route path="/admin" element={<Navigate to="/" replace />} />
-        <Route path="/settings" element={<Navigate to="/" replace />} />
+        {canExportRecords ? <Route path="/reports" element={<Reports />} /> : <Route path="/reports" element={<Navigate to="/" replace />} />}
+        {canManageChurch ? <Route path="/team" element={<Team />} /> : <Route path="/team" element={<Navigate to="/" replace />} />}
+        {canManageChurch ? <Route path="/admin" element={<Admin />} /> : <Route path="/admin" element={<Navigate to="/" replace />} />}
+        {canManageChurch ? <Route path="/settings" element={<Settings />} /> : <Route path="/settings" element={<Navigate to="/" replace />} />}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
