@@ -1,8 +1,19 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Bell, Building2, CheckCircle, Database, Download, ExternalLink, Link, Palette, SlidersHorizontal, Upload } from "lucide-react";
+import { AlertTriangle, Bell, Building2, CheckCircle, Database, Download, ExternalLink, Link, Palette, SlidersHorizontal, Upload, User } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
-import { supabaseRequest } from "@/lib/supabaseRest";
+import { deleteCurrentUser, isSupabaseConfigured, supabaseRequest, updateUserMetadata } from "@/lib/supabaseRest";
 import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,7 +100,16 @@ const presets = {
 };
 
 const Settings = () => {
-  const { activeMembership, canManageChurch } = useAuth();
+  const { activeMembership, canManageChurch, session, signOut } = useAuth();
+  const userEmail = session?.user?.email ?? "";
+  const userInitials = userEmail.slice(0, 2).toUpperCase();
+  const savedName = (session?.user as any)?.user_metadata?.display_name as string | undefined;
+  const [displayName, setDisplayName] = useState(
+    savedName ?? userEmail.split("@")[0].replace(".", " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [organizationName, setOrganizationName] = useState("");
   const [organizationType, setOrganizationType] = useState("other");
   const [memberLabel, setMemberLabel] = useState("People");
@@ -120,6 +140,37 @@ const Settings = () => {
     setGroupLabel(preset.groupLabel);
     setAttendanceLabel(preset.attendanceLabel);
     setPrimaryFocus(preset.primaryFocus);
+  }
+
+  async function saveProfile(e: FormEvent) {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      if (isSupabaseConfigured) {
+        await updateUserMetadata({ display_name: displayName.trim() });
+      }
+      toast({ title: "Profile updated" });
+    } catch (err) {
+      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Unable to save.", variant: "destructive" });
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      if (isSupabaseConfigured) {
+        await deleteCurrentUser();
+      }
+      signOut();
+      toast({ title: "Account deleted", description: "Your account has been permanently removed." });
+    } catch (err) {
+      toast({ title: "Delete failed", description: err instanceof Error ? err.message : "Unable to delete account.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
   }
 
   async function saveOrganizationSettings(event: FormEvent<HTMLFormElement>) {
@@ -204,11 +255,12 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-4">
+        <TabsList className="grid w-full max-w-2xl grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Alerts</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -481,7 +533,92 @@ const Settings = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="account" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                My Account
+              </CardTitle>
+              <CardDescription>Manage your personal profile and account settings.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-14 w-14">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-semibold">{displayName}</div>
+                  <div className="text-sm text-muted-foreground">{userEmail}</div>
+                  <Badge className="mt-1 text-xs bg-primary/10 text-primary border-0">{activeMembership?.role ?? "staff"}</Badge>
+                </div>
+              </div>
+
+              <Separator />
+
+              <form onSubmit={saveProfile} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="staff-display-name">Display name</Label>
+                  <Input
+                    id="staff-display-name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="staff-email">Email address</Label>
+                  <Input id="staff-email" value={userEmail} disabled className="bg-muted" />
+                  <p className="text-xs text-muted-foreground">Contact your organization owner to change your email.</p>
+                </div>
+                <Button type="submit" disabled={savingProfile}>
+                  {savingProfile ? "Saving..." : "Save Profile"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="text-base text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Danger Zone
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+              <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+                Delete My Account
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your account and remove all your data from our servers.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Yes, delete my account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

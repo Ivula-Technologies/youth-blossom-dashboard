@@ -144,6 +144,46 @@ export async function resendSignupConfirmation(email: string) {
   }
 }
 
+export async function updateUserMetadata(metadata: Record<string, unknown>): Promise<void> {
+  const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
+  const session = getStoredSession();
+  if (!session?.access_token) throw new Error("Not authenticated");
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "PUT",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ data: metadata }),
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.error_description || payload?.msg || payload?.message || "Unable to update profile");
+  }
+}
+
+export async function deleteCurrentUser(): Promise<void> {
+  const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
+  const session = getStoredSession();
+  if (!session?.access_token) throw new Error("Not authenticated");
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "DELETE",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!response.ok && response.status !== 204) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error_description || payload?.msg || payload?.message || "Unable to delete account");
+  }
+}
+
 export async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
   const session = getStoredSession();

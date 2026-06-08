@@ -1,6 +1,16 @@
 import { FormEvent, useState } from "react";
-import { User } from "lucide-react";
+import { AlertTriangle, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,30 +18,66 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/auth/AuthContext";
+import { deleteCurrentUser, isSupabaseConfigured, updateUserMetadata } from "@/lib/supabaseRest";
 import { toast } from "@/hooks/use-toast";
 
 export default function MemberProfile() {
-  const { session, activeMembership } = useAuth();
+  const { session, activeMembership, signOut } = useAuth();
   const userEmail = session?.user?.email ?? "";
   const userInitials = userEmail.slice(0, 2).toUpperCase();
 
+  const savedName = (session?.user as any)?.user_metadata?.display_name as string | undefined;
+  const savedPhone = (session?.user as any)?.user_metadata?.phone as string | undefined;
+
   const [displayName, setDisplayName] = useState(
-    userEmail.split("@")[0].replace(".", " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    savedName ?? userEmail.split("@")[0].replace(".", " ").replace(/\b\w/g, (c) => c.toUpperCase())
   );
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(savedPhone ?? "");
   const [saving, setSaving] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [notifEvents, setNotifEvents] = useState(true);
   const [notifAnnouncements, setNotifAnnouncements] = useState(true);
   const [notifReminders, setNotifReminders] = useState(true);
 
-  function handleSaveProfile(e: FormEvent) {
+  async function handleSaveProfile(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      if (isSupabaseConfigured) {
+        await updateUserMetadata({ display_name: displayName.trim(), phone: phone.trim() });
+      }
       toast({ title: "Profile updated", description: "Your changes have been saved." });
-    }, 600);
+    } catch (err) {
+      toast({
+        title: "Save failed",
+        description: err instanceof Error ? err.message : "Unable to save profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      if (isSupabaseConfigured) {
+        await deleteCurrentUser();
+      }
+      signOut();
+      toast({ title: "Account deleted", description: "Your account has been permanently removed." });
+    } catch (err) {
+      toast({
+        title: "Delete failed",
+        description: err instanceof Error ? err.message : "Unable to delete account.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
   }
 
   return (
@@ -44,7 +90,6 @@ export default function MemberProfile() {
         <p className="text-muted-foreground mt-1">View and update your personal information.</p>
       </div>
 
-      {/* Profile summary */}
       <Card>
         <CardContent className="flex items-center gap-4 p-6">
           <Avatar className="h-16 w-16">
@@ -63,7 +108,6 @@ export default function MemberProfile() {
         </CardContent>
       </Card>
 
-      {/* Edit profile */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Personal Information</CardTitle>
@@ -100,7 +144,6 @@ export default function MemberProfile() {
         </CardContent>
       </Card>
 
-      {/* Notification preferences */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Notification Preferences</CardTitle>
@@ -125,6 +168,45 @@ export default function MemberProfile() {
           ))}
         </CardContent>
       </Card>
+
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-base text-destructive flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </p>
+          <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+            Delete My Account
+          </Button>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your account and remove all your data from our servers.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Yes, delete my account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

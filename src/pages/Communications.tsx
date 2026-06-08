@@ -3,13 +3,23 @@ import {
   Bell,
   Calendar,
   CheckCircle,
-  ChevronRight,
   Info,
   Megaphone,
   MessageSquare,
   Send,
+  Trash2,
   Users,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,11 +136,12 @@ const categoryLabels: Record<AnnouncementCategory, string> = {
 };
 
 const Communications = () => {
-  const { activeMembership, canEditRecords } = useAuth();
+  const { activeMembership, canEditRecords, canManageChurch } = useAuth();
   const memberLabel = activeMembership?.memberLabel ?? "People";
   const programLabel = activeMembership?.programLabel ?? "Programs";
 
   const [announcements, setAnnouncements] = useState<Announcement[]>(sampleAnnouncements);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [audience, setAudience] = useState<AnnouncementAudience>("all");
@@ -141,6 +152,13 @@ const Communications = () => {
   const [notifEngagement, setNotifEngagement] = useState(true);
   const [notifReports, setNotifReports] = useState(false);
   const [notifEventReminders, setNotifEventReminders] = useState(true);
+
+  function confirmDelete() {
+    if (!deletingId) return;
+    setAnnouncements((prev) => prev.filter((a) => a.id !== deletingId));
+    setDeletingId(null);
+    toast({ title: "Announcement deleted" });
+  }
 
   const handleSend = () => {
     if (!title.trim() || !body.trim()) {
@@ -278,7 +296,16 @@ const Communications = () => {
                         </span>
                       </div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
+                    {canEditRecords && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0"
+                        onClick={() => setDeletingId(announcement.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -466,6 +493,23 @@ const Communications = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => { if (!open) setDeletingId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete announcement?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This announcement will be permanently removed and recipients will no longer see it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
