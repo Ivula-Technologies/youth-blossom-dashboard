@@ -54,6 +54,8 @@ interface AuthContextValue {
   canManageChurch: boolean;
   canRecordAttendance: boolean;
   canExportRecords: boolean;
+  reloadAccess: () => Promise<void>;
+  applyIntent: (intent: SignupIntent) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, intent: SignupIntent) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => void;
@@ -301,12 +303,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         storePendingSignupIntent(null);
       }
 
-      // Only auto-create an org when the user explicitly registered one.
-      // If they joined via a join code and the join failed or is pending,
-      // do NOT silently create a new org — that would give them unintended owner access.
-      const wasRegisterIntent = pendingIntent?.type === "register_church";
-      const noIntent = !pendingIntent;
-      if (nextMemberships.length === 0 && (wasRegisterIntent || noIntent)) {
+      // Never auto-create an org unless the user explicitly chose "Register organization".
+      // Users who sign in with no membership are shown a join/create screen instead.
+      if (nextMemberships.length === 0 && pendingIntent?.type === "register_church") {
         nextMemberships = await createFirstChurchForUser(nextSession);
       }
 
@@ -355,6 +354,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canManageChurch,
       canRecordAttendance,
       canExportRecords,
+      async reloadAccess() {
+        await loadAccess(session);
+      },
+      async applyIntent(intent: SignupIntent) {
+        if (!session) throw new Error("Not signed in");
+        const nextMemberships = await applySignupIntent(session, intent);
+        setMemberships(nextMemberships);
+        const activeMemberships = nextMemberships.filter((m) => m.status === "active");
+        const nextActive = activeMemberships[0] ?? null;
+        storeActiveChurchId(nextActive?.churchId ?? null);
+        setActiveChurchId(nextActive?.churchId ?? null);
+      },
       async signIn(email, password) {
         const nextSession = await signInWithPassword(email, password);
         setSession(nextSession);

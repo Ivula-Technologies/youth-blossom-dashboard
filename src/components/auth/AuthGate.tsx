@@ -65,7 +65,7 @@ function clearAuthLinkError() {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { isConfigured, isAuthenticated, activeMembership, pendingMembership, isLoadingAccess, accessError, signIn, signUp, signOut } = useAuth();
+  const { isConfigured, isAuthenticated, activeMembership, pendingMembership, isLoadingAccess, accessError, signIn, signUp, signOut, applyIntent } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signupMode, setSignupMode] = useState<"register_church" | "join_church">("register_church");
@@ -173,24 +173,119 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  // User authenticated but has no membership yet (e.g. join code request submitted,
-  // waiting for admin approval, or join failed). Show a holding screen rather than
-  // the sign-in form or silently creating a new org.
+  // Authenticated but not linked to any org — let them join one or create their own.
   if (isAuthenticated && !isLoadingAccess && !pendingMembership && !accessError) {
+    async function handleJoinOrg(e: FormEvent<HTMLFormElement>) {
+      e.preventDefault();
+      setError(null);
+      setIsSubmitting(true);
+      try {
+        if (!joinCode.trim()) { setError("Enter the join code from your administrator."); return; }
+        await applyIntent({ type: "join_church", joinCode: joinCode.trim(), role });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to join organization");
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
+    async function handleCreateOrg(e: FormEvent<HTMLFormElement>) {
+      e.preventDefault();
+      setError(null);
+      setIsSubmitting(true);
+      try {
+        await applyIntent({ type: "register_church", churchName: churchName.trim() || "My Organization", organizationType });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to create organization");
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
     return (
       <main className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-3">
             <img src="/ivula-mark.svg" alt="Ivula Canopy logo" className="h-12 w-12 rounded-lg object-contain bg-white p-1" />
             <div>
-              <CardTitle>No organization access</CardTitle>
+              <CardTitle>Join or create an organization</CardTitle>
               <CardDescription>
-                Your account isn't linked to an organization yet. If you used a join code, your request may be awaiting approval. Contact your administrator if this is unexpected.
+                Your account isn't linked to an organization yet. Enter a join code from your administrator, or register a new organization.
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={signOut}>Sign out</Button>
+            <Tabs defaultValue="join" className="space-y-4" onValueChange={() => { setError(null); setNotice(null); }}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="join">Join with code</TabsTrigger>
+                <TabsTrigger value="create">Create new</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="join">
+                <form onSubmit={handleJoinOrg} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="no-org-join-code">Join code</Label>
+                    <Input
+                      id="no-org-join-code"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      placeholder="AB12CD34EF"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Access level</Label>
+                    <Select value={role} onValueChange={(v) => setRole(v as JoinableChurchRole)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="member">Regular member</SelectItem>
+                        <SelectItem value="volunteer">Volunteer / Staff</SelectItem>
+                        <SelectItem value="leader">Leader / Coordinator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Joining..." : "Join Organization"}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="create">
+                <form onSubmit={handleCreateOrg} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="no-org-type">Organization type</Label>
+                    <Select value={organizationType} onValueChange={setOrganizationType}>
+                      <SelectTrigger id="no-org-type"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {organizationTypes.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="no-org-name">Organization name</Label>
+                    <Input
+                      id="no-org-name"
+                      value={churchName}
+                      onChange={(e) => setChurchName(e.target.value)}
+                      placeholder="My Organization"
+                    />
+                  </div>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? "Creating..." : "Create Organization"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+
+            <div className="mt-4 pt-4 border-t">
+              <Button variant="ghost" size="sm" className="w-full text-muted-foreground" onClick={signOut}>
+                Sign out
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </main>
