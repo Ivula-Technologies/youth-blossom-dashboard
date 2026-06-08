@@ -301,7 +301,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         storePendingSignupIntent(null);
       }
 
-      if (nextMemberships.length === 0) {
+      // Only auto-create an org when the user explicitly registered one.
+      // If they joined via a join code and the join failed or is pending,
+      // do NOT silently create a new org — that would give them unintended owner access.
+      const wasRegisterIntent = pendingIntent?.type === "register_church";
+      const noIntent = !pendingIntent;
+      if (nextMemberships.length === 0 && (wasRegisterIntent || noIntent)) {
         nextMemberships = await createFirstChurchForUser(nextSession);
       }
 

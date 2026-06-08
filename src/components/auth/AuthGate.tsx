@@ -173,6 +173,30 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  // User authenticated but has no membership yet (e.g. join code request submitted,
+  // waiting for admin approval, or join failed). Show a holding screen rather than
+  // the sign-in form or silently creating a new org.
+  if (isAuthenticated && !isLoadingAccess && !pendingMembership && !accessError) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-3">
+            <img src="/ivula-mark.svg" alt="Ivula Canopy logo" className="h-12 w-12 rounded-lg object-contain bg-white p-1" />
+            <div>
+              <CardTitle>No organization access</CardTitle>
+              <CardDescription>
+                Your account isn't linked to an organization yet. If you used a join code, your request may be awaiting approval. Contact your administrator if this is unexpected.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full" onClick={signOut}>Sign out</Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
   if (isAuthenticated && pendingMembership) {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center p-4">
