@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { mockPrograms, mockYouths, Program } from "@/data/mockData";
+import { mockPrograms, mockYouths, type Program } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Calendar,
   Users,
   TrendingUp,
@@ -28,12 +39,15 @@ import {
   Heart,
   Megaphone,
   Crown,
-  Sun,
   GraduationCap,
   Briefcase,
   UserX,
 } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 import { cn } from "@/lib/utils";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { STORAGE_KEYS } from "@/data/attendanceRecords";
+import { toast } from "@/hooks/use-toast";
 
 const categoryIcons: Record<string, typeof Music> = {
   worship: Music,
@@ -41,7 +55,16 @@ const categoryIcons: Record<string, typeof Music> = {
   fellowship: Heart,
   outreach: Megaphone,
   leadership: Crown,
-  sabbath_school: Sun,
+  sabbath_school: GraduationCap,
+};
+
+const categoryLabels: Record<string, string> = {
+  worship: "Gathering",
+  discipleship: "Learning",
+  fellowship: "Community",
+  outreach: "Outreach",
+  leadership: "Leadership",
+  sabbath_school: "Study Group",
 };
 
 const categoryColors: Record<string, string> = {
@@ -54,52 +77,108 @@ const categoryColors: Record<string, string> = {
 };
 
 const scheduleTypeLabels: Record<string, { label: string; className: string }> = {
-  sabbath: { label: "Sabbath", className: "bg-primary/10 text-primary border-primary/20" },
+  sabbath: { label: "Weekend", className: "bg-primary/10 text-primary border-primary/20" },
   weekday: { label: "Weekday", className: "bg-muted text-muted-foreground border-border" },
   special: { label: "Special Event", className: "bg-accent/10 text-accent border-accent/20" },
 };
 
-// Calculate member employment stats from mock data
 const memberStats = {
-  students: mockYouths.filter(y => y.educationStatus === 'high_school' || y.educationStatus === 'college').length,
-  employed: mockYouths.filter(y => y.educationStatus === 'working').length,
-  unemployed: mockYouths.filter(y => y.educationStatus === 'unemployed').length,
+  students: mockYouths.filter(y => y.educationStatus === "high_school" || y.educationStatus === "college").length,
+  employed: mockYouths.filter(y => y.educationStatus === "working").length,
+  unemployed: mockYouths.filter(y => y.educationStatus === "unemployed").length,
 };
 
 const Programs = () => {
+  const { activeMembership } = useAuth();
+  const programLabel = activeMembership?.programLabel ?? "Programs";
+  const memberLabel = activeMembership?.memberLabel ?? "People";
+  const primaryFocus = activeMembership?.primaryFocus ?? "Programs";
+  const [programs, setPrograms] = useLocalStorage<Program[]>(STORAGE_KEYS.PROGRAMS, mockPrograms);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [scheduleFilter, setScheduleFilter] = useState("all");
+  const [isProgramDialogOpen, setIsProgramDialogOpen] = useState(false);
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [programDraft, setProgramDraft] = useState({
+    name: "",
+    description: "",
+    category: "outreach" as Program["category"],
+    schedule: "",
+    scheduleType: "weekday" as Program["scheduleType"],
+    leader: "",
+    maxCapacity: "",
+  });
 
-  const filteredPrograms = mockPrograms.filter((program) => {
+  const filteredPrograms = programs.filter((program) => {
     const categoryMatch = categoryFilter === "all" || program.category === categoryFilter;
     const scheduleMatch = scheduleFilter === "all" || program.scheduleType === scheduleFilter;
     return categoryMatch && scheduleMatch;
   });
 
-  const activePrograms = mockPrograms.filter((p) => p.isActive);
-  const totalParticipants = mockPrograms.reduce((sum, p) => sum + p.participantCount, 0);
+  const activePrograms = programs.filter((p) => p.isActive);
+  const totalParticipants = programs.reduce((sum, p) => sum + p.participantCount, 0);
   const avgEngagement = Math.round(
-    mockPrograms.reduce((sum, p) => sum + p.engagementScore, 0) / mockPrograms.length
+    programs.reduce((sum, p) => sum + p.engagementScore, 0) / Math.max(programs.length, 1)
   );
-  const sabbathPrograms = mockPrograms.filter((p) => p.scheduleType === "sabbath").length;
+  const weekendPrograms = programs.filter((p) => p.scheduleType === "sabbath").length;
+
+  const openAddProgram = () => {
+    setProgramDraft({
+      name: "",
+      description: "",
+      category: "outreach",
+      schedule: "",
+      scheduleType: "weekday",
+      leader: "",
+      maxCapacity: "",
+    });
+    setIsProgramDialogOpen(true);
+  };
+
+  const saveProgram = () => {
+    if (!programDraft.name.trim() || !programDraft.description.trim()) {
+      toast({
+        title: "Program details needed",
+        description: `Add a name and description before saving this ${programLabel.toLowerCase()}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const nextProgram: Program = {
+      id: crypto.randomUUID(),
+      name: programDraft.name.trim(),
+      description: programDraft.description.trim(),
+      category: programDraft.category,
+      startDate: new Date().toISOString().split("T")[0],
+      isActive: true,
+      participantCount: 0,
+      maxCapacity: programDraft.maxCapacity ? Number(programDraft.maxCapacity) : undefined,
+      leader: programDraft.leader.trim() || "Unassigned",
+      schedule: programDraft.schedule.trim() || "Schedule not set",
+      scheduleType: programDraft.scheduleType,
+      averageAttendance: 0,
+      engagementScore: 0,
+      memberBreakdown: { students: 0, employed: 0, unemployed: 0 },
+    };
+
+    setPrograms((current) => [nextProgram, ...current]);
+    setIsProgramDialogOpen(false);
+    toast({ title: `${programLabel} saved`, description: `${nextProgram.name} is now available.` });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="page-header mb-0">
-          <h1 className="page-title">AY Programs & Activities</h1>
-          <p className="page-description">
-            Track and manage Adventist Youth ministry programs
-          </p>
+          <h1 className="page-title">{programLabel} & Activities</h1>
+          <p className="page-description">Track and manage {primaryFocus.toLowerCase()} for your organization.</p>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={openAddProgram}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Program
+          Add New
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -109,7 +188,7 @@ const Programs = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold">{activePrograms.length}</p>
-                <p className="text-sm text-muted-foreground">Active Programs</p>
+                <p className="text-sm text-muted-foreground">Active {programLabel}</p>
               </div>
             </div>
           </CardContent>
@@ -131,11 +210,11 @@ const Programs = () => {
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-accent/10">
-                <Sun className="h-6 w-6 text-accent" />
+                <Clock className="h-6 w-6 text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{sabbathPrograms}</p>
-                <p className="text-sm text-muted-foreground">Sabbath Programs</p>
+                <p className="text-2xl font-bold">{weekendPrograms}</p>
+                <p className="text-sm text-muted-foreground">Weekend {programLabel}</p>
               </div>
             </div>
           </CardContent>
@@ -155,11 +234,10 @@ const Programs = () => {
         </Card>
       </div>
 
-      {/* Member Status Overview */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Member Employment & Education Status</CardTitle>
-          <CardDescription>Overview of AY members by occupation status</CardDescription>
+          <CardTitle className="text-lg">{memberLabel} Status Overview</CardTitle>
+          <CardDescription>Overview by education and work status</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -191,7 +269,6 @@ const Programs = () => {
         </CardContent>
       </Card>
 
-      {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[180px]">
@@ -199,10 +276,10 @@ const Programs = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="worship">Worship</SelectItem>
-            <SelectItem value="sabbath_school">Sabbath School</SelectItem>
-            <SelectItem value="discipleship">Discipleship</SelectItem>
-            <SelectItem value="fellowship">Fellowship</SelectItem>
+            <SelectItem value="worship">Gathering</SelectItem>
+            <SelectItem value="sabbath_school">Study Group</SelectItem>
+            <SelectItem value="discipleship">Learning</SelectItem>
+            <SelectItem value="fellowship">Community</SelectItem>
             <SelectItem value="outreach">Outreach</SelectItem>
             <SelectItem value="leadership">Leadership</SelectItem>
           </SelectContent>
@@ -213,17 +290,14 @@ const Programs = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Schedules</SelectItem>
-            <SelectItem value="sabbath">Sabbath Programs</SelectItem>
-            <SelectItem value="weekday">Weekday Programs</SelectItem>
+            <SelectItem value="sabbath">Weekend</SelectItem>
+            <SelectItem value="weekday">Weekday</SelectItem>
             <SelectItem value="special">Special Events</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredPrograms.length} programs
-        </p>
+        <p className="text-sm text-muted-foreground">Showing {filteredPrograms.length} {programLabel.toLowerCase()}</p>
       </div>
 
-      {/* Program Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPrograms.map((program) => {
           const Icon = categoryIcons[program.category] || Calendar;
@@ -233,24 +307,16 @@ const Programs = () => {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "p-2 rounded-lg border",
-                        categoryColors[program.category]
-                      )}
-                    >
+                    <div className={cn("p-2 rounded-lg border", categoryColors[program.category])}>
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">{program.name}</CardTitle>
                       <div className="flex gap-1 mt-1 flex-wrap">
                         <Badge variant="outline" className="capitalize text-xs">
-                          {program.category.replace('_', ' ')}
+                          {categoryLabels[program.category] ?? program.category.replace("_", " ")}
                         </Badge>
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-xs", scheduleInfo.className)}
-                        >
+                        <Badge variant="outline" className={cn("text-xs", scheduleInfo.className)}>
                           {scheduleInfo.label}
                         </Badge>
                       </div>
@@ -258,20 +324,14 @@ const Programs = () => {
                   </div>
                   <Badge
                     variant={program.isActive ? "default" : "secondary"}
-                    className={
-                      program.isActive
-                        ? "bg-success/10 text-success border-success/20"
-                        : ""
-                    }
+                    className={program.isActive ? "bg-success/10 text-success border-success/20" : ""}
                   >
                     {program.isActive ? "Active" : "Past"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <CardDescription className="line-clamp-2">
-                  {program.description}
-                </CardDescription>
+                <CardDescription className="line-clamp-2">{program.description}</CardDescription>
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -280,18 +340,12 @@ const Programs = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    <span>
-                      {program.participantCount}
-                      {program.maxCapacity && ` / ${program.maxCapacity}`} participants
-                    </span>
+                    <span>{program.participantCount}{program.maxCapacity && ` / ${program.maxCapacity}`} participants</span>
                   </div>
                 </div>
 
-                {/* Member Breakdown */}
                 <div className="p-3 rounded-lg bg-muted/50 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Member Status Breakdown
-                  </p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status Breakdown</p>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
                       <div className="flex items-center justify-center gap-1">
@@ -326,15 +380,111 @@ const Programs = () => {
                 </div>
 
                 <div className="pt-2">
-                  <Button variant="outline" size="sm" className="w-full">
-                    View Details
-                  </Button>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => setSelectedProgram(program)}>View Details</Button>
                 </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      <Dialog open={isProgramDialogOpen} onOpenChange={setIsProgramDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add {programLabel}</DialogTitle>
+            <DialogDescription>Create a program, activity, team rhythm, or event for this organization.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="program-name">Name</Label>
+              <Input id="program-name" value={programDraft.name} onChange={(event) => setProgramDraft((draft) => ({ ...draft, name: event.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="program-description">Description</Label>
+              <Textarea id="program-description" value={programDraft.description} onChange={(event) => setProgramDraft((draft) => ({ ...draft, description: event.target.value }))} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select value={programDraft.category} onValueChange={(value) => setProgramDraft((draft) => ({ ...draft, category: value as Program["category"] }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="worship">Gathering</SelectItem>
+                    <SelectItem value="sabbath_school">Study Group</SelectItem>
+                    <SelectItem value="discipleship">Learning</SelectItem>
+                    <SelectItem value="fellowship">Community</SelectItem>
+                    <SelectItem value="outreach">Outreach</SelectItem>
+                    <SelectItem value="leadership">Leadership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Schedule Type</Label>
+                <Select value={programDraft.scheduleType} onValueChange={(value) => setProgramDraft((draft) => ({ ...draft, scheduleType: value as Program["scheduleType"] }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sabbath">Weekend</SelectItem>
+                    <SelectItem value="weekday">Weekday</SelectItem>
+                    <SelectItem value="special">Special Event</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2 sm:col-span-1">
+                <Label htmlFor="program-leader">Lead</Label>
+                <Input id="program-leader" value={programDraft.leader} onChange={(event) => setProgramDraft((draft) => ({ ...draft, leader: event.target.value }))} />
+              </div>
+              <div className="space-y-2 sm:col-span-1">
+                <Label htmlFor="program-schedule">Schedule</Label>
+                <Input id="program-schedule" value={programDraft.schedule} onChange={(event) => setProgramDraft((draft) => ({ ...draft, schedule: event.target.value }))} placeholder="Tuesdays at 6 PM" />
+              </div>
+              <div className="space-y-2 sm:col-span-1">
+                <Label htmlFor="program-capacity">Capacity</Label>
+                <Input id="program-capacity" type="number" min="0" value={programDraft.maxCapacity} onChange={(event) => setProgramDraft((draft) => ({ ...draft, maxCapacity: event.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProgramDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveProgram}>Save {programLabel}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedProgram} onOpenChange={(open) => !open && setSelectedProgram(null)}>
+        <DialogContent>
+          {selectedProgram && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedProgram.name}</DialogTitle>
+                <DialogDescription>{selectedProgram.description}</DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Category</p>
+                  <p className="font-medium">{categoryLabels[selectedProgram.category]}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Schedule</p>
+                  <p className="font-medium">{selectedProgram.schedule}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Lead</p>
+                  <p className="font-medium">{selectedProgram.leader}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Participants</p>
+                  <p className="font-medium">{selectedProgram.participantCount}</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedProgram(null)}>Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

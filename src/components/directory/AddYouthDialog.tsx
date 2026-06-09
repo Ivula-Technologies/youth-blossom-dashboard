@@ -33,17 +33,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  GraduationCap, 
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  GraduationCap,
   Briefcase,
-  Church,
+  BookOpen,
   Users,
-  Heart
+  TrendingUp
 } from "lucide-react";
 import { Youth } from "@/data/mockData";
 import { toast } from "@/hooks/use-toast";
@@ -68,7 +68,7 @@ const youthFormSchema = z.object({
   occupation: z.string().trim().max(100).optional(),
   employer: z.string().trim().max(100).optional(),
   
-  // SDA Specific
+  // Optional background
   isBaptized: z.boolean().default(false),
   baptismDate: z.string().optional(),
   homeChurch: z.string().trim().max(100).optional(),
@@ -77,7 +77,7 @@ const youthFormSchema = z.object({
   // Ministry & Engagement
   smallGroup: z.string().optional(),
   ministryAreas: z.array(z.string()).default([]),
-  discipleshipStatus: z.enum(["new_believer", "growing", "mature", "leader"]).default("new_believer"),
+  discipleshipStatus: z.enum(["new_member", "developing", "experienced", "leader"]).default("new_member"),
   leadershipLevel: z.enum(["none", "emerging", "developing", "established"]).default("none"),
   
   // Additional
@@ -96,24 +96,24 @@ interface AddYouthDialogProps {
 }
 
 const ministryOptions = [
-  "Worship/Music",
-  "AY Leadership",
-  "Sabbath School",
-  "Pathfinders",
-  "Adventurers",
+  "Music/Creative",
+  "Youth Leadership",
+  "Learning Circle",
+  "Mentorship",
+  "Volunteer Team",
   "Community Service",
   "Media/Tech",
-  "Ushering",
-  "Children's Ministry",
-  "Health Ministry",
-  "Literature Evangelism",
-  "Prayer Ministry",
+  "Hospitality",
+  "Family Support",
+  "Wellbeing",
+  "Outreach",
+  "Care Team",
 ];
 
 const smallGroupOptions = [
   "Young Adults Connect",
   "Teen Warriors",
-  "Junior Youth",
+  "Junior Cohort",
   "Young Professionals",
   "College & Career",
 ];
@@ -135,7 +135,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
       employmentStatus: "student",
       isStudent: false,
       ministryAreas: editingYouth?.ministryAreas || [],
-      discipleshipStatus: editingYouth?.discipleshipStatus || "new_believer",
+      discipleshipStatus: editingYouth?.discipleshipStatus || "new_member",
       leadershipLevel: editingYouth?.leadershipLevel || "none",
       isBaptized: false,
     },
@@ -176,7 +176,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
 
     onSave(newYouth);
     toast({
-      title: editingYouth ? "Youth Updated" : "Youth Added",
+      title: editingYouth ? "Record Updated" : "Record Added",
       description: `${data.firstName} ${data.lastName} has been ${editingYouth ? "updated" : "added"} successfully.`,
     });
     form.reset();
@@ -192,10 +192,11 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    if (age >= 25) return "25-30";
-    if (age >= 19) return "19-24";
-    if (age >= 16) return "16-18";
-    return "13-15";
+    if (age >= 60) return "60+";
+    if (age >= 46) return "46-60";
+    if (age >= 31) return "31-45";
+    if (age >= 18) return "18-30";
+    return "under-18";
   };
 
   const nextStep = async () => {
@@ -222,14 +223,14 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            {editingYouth ? "Edit Youth Member" : "Register New AY Member"}
+            {editingYouth ? "Edit Person" : "Add Person"}
           </DialogTitle>
           <DialogDescription>
             Step {step} of {totalSteps}: {
               step === 1 ? "Personal Information" :
               step === 2 ? "Education & Employment" :
-              step === 3 ? "Spiritual Journey" :
-              "Ministry & Notes"
+              step === 3 ? "Background & Involvement" :
+              "Teams & Notes"
             }
           </DialogDescription>
         </DialogHeader>
@@ -557,12 +558,12 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                 </div>
               )}
 
-              {/* Step 3: Spiritual Journey */}
+              {/* Step 3: Background & Growth */}
               {step === 3 && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Church className="h-4 w-4" />
-                    SDA Faith Journey
+                    <BookOpen className="h-4 w-4" />
+                    Background & Involvement
                   </div>
 
                   <FormField
@@ -577,9 +578,9 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel className="text-base">Baptized SDA Member</FormLabel>
+                          <FormLabel className="text-base">Completed Orientation</FormLabel>
                           <FormDescription>
-                            Has been baptized into the Seventh-day Adventist Church
+                            Has completed the organization's onboarding or membership process
                           </FormDescription>
                         </div>
                       </FormItem>
@@ -592,7 +593,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                       name="baptismDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Baptism Date</FormLabel>
+                          <FormLabel>Orientation Date</FormLabel>
                           <FormControl>
                             <Input type="date" {...field} />
                           </FormControl>
@@ -607,12 +608,12 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                     name="homeChurch"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Home Church</FormLabel>
+                        <FormLabel>Primary Affiliation</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., Springfield SDA Church" {...field} />
+                          <Input placeholder="e.g., campus chapter, local branch, partner group" {...field} />
                         </FormControl>
                         <FormDescription>
-                          The local SDA church they are a member of
+                          The branch, chapter, or group they are connected to
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -624,7 +625,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                     name="sabbathKeepingYears"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Years Keeping Sabbath</FormLabel>
+                        <FormLabel>Years Involved</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -632,11 +633,11 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="new">New to Sabbath keeping</SelectItem>
+                            <SelectItem value="new">New participant</SelectItem>
                             <SelectItem value="1-2">1-2 years</SelectItem>
                             <SelectItem value="3-5">3-5 years</SelectItem>
                             <SelectItem value="5+">5+ years</SelectItem>
-                            <SelectItem value="lifelong">Lifelong Adventist</SelectItem>
+                            <SelectItem value="lifelong">Long-term member</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -647,8 +648,8 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                   <Separator />
 
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Heart className="h-4 w-4" />
-                    Spiritual Growth
+                    <TrendingUp className="h-4 w-4" />
+                    Development Stage
                   </div>
 
                   <FormField
@@ -656,7 +657,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                     name="discipleshipStatus"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Discipleship Stage</FormLabel>
+                        <FormLabel>Development Stage</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -664,10 +665,10 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="new_believer">New Believer</SelectItem>
-                            <SelectItem value="growing">Growing in Faith</SelectItem>
-                            <SelectItem value="mature">Mature Believer</SelectItem>
-                            <SelectItem value="leader">Spiritual Leader</SelectItem>
+                            <SelectItem value="new_member">New Member</SelectItem>
+                            <SelectItem value="developing">Developing</SelectItem>
+                            <SelectItem value="experienced">Experienced</SelectItem>
+                            <SelectItem value="leader">Team Leader</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -706,7 +707,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    Ministry Involvement
+                    Teams & Activities
                   </div>
 
                   <FormField
@@ -740,9 +741,9 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                     name="ministryAreas"
                     render={() => (
                       <FormItem>
-                        <FormLabel>Ministry Areas</FormLabel>
+                        <FormLabel>Activity Areas</FormLabel>
                         <FormDescription>
-                          Select all ministries they are involved in or interested in
+                          Select all teams or activities they are involved in or interested in
                         </FormDescription>
                         <div className="grid grid-cols-2 gap-2 mt-2">
                           {ministryOptions.map((ministry) => (
@@ -792,7 +793,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                         <FormItem>
                           <FormLabel>Contact Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Parent/Guardian name" {...field} />
+                            <Input placeholder="Contact name" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -821,7 +822,7 @@ export function AddYouthDialog({ open, onOpenChange, onSave, editingYouth }: Add
                         <FormLabel>Additional Notes</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Any special needs, prayer requests, or important information..."
+                            placeholder="Any special needs, accessibility requirements, or important notes..."
                             className="min-h-[100px]"
                             {...field}
                           />

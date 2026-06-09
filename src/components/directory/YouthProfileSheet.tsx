@@ -14,15 +14,12 @@ import {
   Mail,
   Phone,
   MapPin,
-  Calendar,
-  GraduationCap,
   Users,
   Award,
   TrendingUp,
   Edit,
   MessageSquare,
   AlertTriangle,
-  Clock,
   Trash2,
   ClipboardCheck,
 } from "lucide-react";
@@ -36,15 +33,21 @@ interface YouthProfileSheetProps {
   onEdit?: (youth: Youth) => void;
   onDelete?: (youth: Youth) => void;
   onRecordAttendance?: (youth: Youth) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canRecordAttendance?: boolean;
 }
 
-export function YouthProfileSheet({ 
-  youth, 
-  open, 
+export function YouthProfileSheet({
+  youth,
+  open,
   onOpenChange,
   onEdit,
   onDelete,
-  onRecordAttendance
+  onRecordAttendance,
+  canEdit = false,
+  canDelete = false,
+  canRecordAttendance = false,
 }: YouthProfileSheetProps) {
   if (!youth) return null;
 
@@ -69,10 +72,10 @@ export function YouthProfileSheet({
 
   const getDiscipleshipLabel = (status: string) => {
     const labels = {
-      new_believer: "New Believer",
-      growing: "Growing",
-      mature: "Mature",
-      leader: "Spiritual Leader",
+      new_member: "New Member",
+      developing: "Developing",
+      experienced: "Experienced",
+      leader: "Team Leader",
     };
     return labels[status as keyof typeof labels] || status;
   };
@@ -127,44 +130,52 @@ export function YouthProfileSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
-          {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-2">
-            <Button 
-              variant="default" 
-              size="sm" 
+            <Button
+              variant="default"
+              size="sm"
               className="w-full"
               onClick={() => onRecordAttendance?.(youth)}
+              disabled={!canRecordAttendance}
             >
               <ClipboardCheck className="h-4 w-4 mr-2" />
               Record Attendance
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="w-full"
               onClick={() => onEdit?.(youth)}
+              disabled={!canEdit}
             >
               <Edit className="h-4 w-4 mr-2" />
               Edit Profile
             </Button>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => {
+                window.location.href = `mailto:${youth.email}?subject=${encodeURIComponent("Checking in")}`;
+              }}
+            >
               <MessageSquare className="h-4 w-4 mr-2" />
               Message
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={() => onDelete?.(youth)}
+              disabled={!canDelete}
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
           </div>
 
-          {/* Notes Alert */}
           {youth.notes && (
             <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
               <div className="flex items-start gap-2">
@@ -185,7 +196,6 @@ export function YouthProfileSheet({
             </TabsList>
 
             <TabsContent value="overview" className="mt-4 space-y-4">
-              {/* Contact Info */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Contact Information
@@ -208,7 +218,6 @@ export function YouthProfileSheet({
 
               <Separator />
 
-              {/* Demographics */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Demographics
@@ -240,10 +249,9 @@ export function YouthProfileSheet({
 
               <Separator />
 
-              {/* Ministry Areas */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Ministry Involvement
+                  Activity Areas
                 </h4>
                 {youth.ministryAreas.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -254,13 +262,12 @@ export function YouthProfileSheet({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Not involved in any ministry areas</p>
+                  <p className="text-sm text-muted-foreground">Not assigned to any activity areas</p>
                 )}
               </div>
             </TabsContent>
 
             <TabsContent value="engagement" className="mt-4 space-y-4">
-              {/* Engagement Score */}
               <div className="p-4 rounded-lg bg-muted/50">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium">Engagement Score</span>
@@ -269,7 +276,6 @@ export function YouthProfileSheet({
                 <Progress value={youth.engagementScore} className="h-2" />
               </div>
 
-              {/* Attendance */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Attendance
@@ -295,7 +301,6 @@ export function YouthProfileSheet({
 
               <Separator />
 
-              {/* Small Group */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Small Group
@@ -312,16 +317,15 @@ export function YouthProfileSheet({
             </TabsContent>
 
             <TabsContent value="growth" className="mt-4 space-y-4">
-              {/* Discipleship Status */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Spiritual Growth
+                  Development
                 </h4>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <div className="flex items-center gap-3">
                     <TrendingUp className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Discipleship Status</p>
+                      <p className="text-xs text-muted-foreground">Development Stage</p>
                       <p className="font-medium">{getDiscipleshipLabel(youth.discipleshipStatus)}</p>
                     </div>
                   </div>
@@ -330,7 +334,6 @@ export function YouthProfileSheet({
 
               <Separator />
 
-              {/* Leadership Development */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Leadership Development
@@ -348,7 +351,6 @@ export function YouthProfileSheet({
 
               <Separator />
 
-              {/* Mentorship */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Mentorship

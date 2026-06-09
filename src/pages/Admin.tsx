@@ -1,133 +1,64 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Shield,
-  Users,
-  UserPlus,
-  Lock,
-  Eye,
-  Edit,
-  Trash2,
-  AlertTriangle,
-  CheckCircle,
-  Info,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
+import { Shield, Users, Lock, CheckCircle, Info, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 
 const teamMembers = [
+  { name: "Maya Roberts", email: "maya@example.org", role: "owner", status: "active" },
+  { name: "Jordan Ellis", email: "jordan@example.org", role: "leader", status: "active" },
+  { name: "Grace Walker", email: "grace@example.org", role: "volunteer", status: "active" },
+  { name: "Marcus Williams", email: "marcus@example.org", role: "viewer", status: "pending" },
+];
+
+const rolePermissions = [
   {
-    id: "1",
-    name: "Pastor Michael",
-    email: "pastor.michael@church.org",
-    role: "admin",
-    lastActive: "2026-01-29",
-    status: "active",
+    role: "Owner",
+    description: "Full account, billing, organization settings, and data access.",
+    permissions: ["Manage organization", "Approve access", "Export data", "Update privacy settings"],
   },
   {
-    id: "2",
-    name: "Sister Grace",
-    email: "grace@church.org",
-    role: "leader",
-    lastActive: "2026-01-28",
-    status: "active",
+    role: "Admin",
+    description: "Operational administrator for teams, people, and programs.",
+    permissions: ["Manage team", "Edit records", "Generate reports", "Configure programs"],
   },
   {
-    id: "3",
-    name: "Deacon James",
-    email: "james@church.org",
-    role: "leader",
-    lastActive: "2026-01-27",
-    status: "active",
+    role: "Leader",
+    description: "Program or team lead with editing rights for day-to-day work.",
+    permissions: ["Edit records", "Record participation", "View insights", "Follow up with people"],
   },
   {
-    id: "4",
-    name: "Marcus Williams",
-    email: "marcus@church.org",
-    role: "volunteer",
-    lastActive: "2026-01-25",
-    status: "active",
-  },
-  {
-    id: "5",
-    name: "Emily Chen",
-    email: "emily@church.org",
-    role: "volunteer",
-    lastActive: "2026-01-20",
-    status: "inactive",
+    role: "Volunteer",
+    description: "Limited contributor for attendance, participation, and assigned tasks.",
+    permissions: ["Record participation", "View assigned details"],
   },
 ];
 
-const rolePermissions = {
-  admin: {
-    label: "Administrator",
-    color: "bg-destructive/10 text-destructive border-destructive/20",
-    permissions: ["View all data", "Edit all data", "Manage users", "Export data", "Delete records"],
-  },
-  leader: {
-    label: "Youth Leader",
-    color: "bg-primary/10 text-primary border-primary/20",
-    permissions: ["View all data", "Edit assigned members", "Add new youth", "Export data"],
-  },
-  volunteer: {
-    label: "Volunteer",
-    color: "bg-muted text-muted-foreground border-muted",
-    permissions: ["View assigned data", "Record attendance"],
-  },
-};
-
 const Admin = () => {
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const { activeMembership } = useAuth();
+  const memberLabel = activeMembership?.memberLabel ?? "People";
+  const programLabel = activeMembership?.programLabel ?? "Programs";
+  const attendanceLabel = activeMembership?.attendanceLabel ?? "Attendance";
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Admin & Access Control</h1>
+        <h1 className="page-title">Access & Privacy</h1>
         <p className="page-description">
-          Manage team members, roles, and data privacy settings
+          Review role permissions, data controls, and privacy expectations for this organization.
         </p>
       </div>
 
-      <Tabs defaultValue="team" className="space-y-6">
+      <Tabs defaultValue="access" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="team" className="gap-2">
+          <TabsTrigger value="access" className="gap-2">
             <Users className="h-4 w-4" />
-            Team Members
+            Access
           </TabsTrigger>
           <TabsTrigger value="roles" className="gap-2">
             <Shield className="h-4 w-4" />
-            Roles & Permissions
+            Roles
           </TabsTrigger>
           <TabsTrigger value="privacy" className="gap-2">
             <Lock className="h-4 w-4" />
@@ -135,8 +66,7 @@ const Admin = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="team" className="space-y-6">
-          {/* Team Summary */}
+        <TabsContent value="access" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -146,7 +76,7 @@ const Admin = () => {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{teamMembers.length}</p>
-                    <p className="text-sm text-muted-foreground">Total Members</p>
+                    <p className="text-sm text-muted-foreground">Team Accounts</p>
                   </div>
                 </div>
               </CardContent>
@@ -158,9 +88,7 @@ const Admin = () => {
                     <CheckCircle className="h-6 w-6 text-success" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">
-                      {teamMembers.filter((m) => m.status === "active").length}
-                    </p>
+                    <p className="text-2xl font-bold">3</p>
                     <p className="text-sm text-muted-foreground">Active Users</p>
                   </div>
                 </div>
@@ -169,157 +97,54 @@ const Admin = () => {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-destructive/10">
-                    <Shield className="h-6 w-6 text-destructive" />
+                  <div className="p-3 rounded-xl bg-warning/10">
+                    <Shield className="h-6 w-6 text-warning" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">
-                      {teamMembers.filter((m) => m.role === "admin").length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Administrators</p>
+                    <p className="text-2xl font-bold">1</p>
+                    <p className="text-sm text-muted-foreground">Pending Review</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Team Members Table */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Team Members</CardTitle>
-                <CardDescription>Manage who has access to the dashboard</CardDescription>
-              </div>
-              <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite Member
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Invite Team Member</DialogTitle>
-                    <DialogDescription>
-                      Send an invitation to join the youth ministry dashboard
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Email Address</Label>
-                      <Input placeholder="email@church.org" type="email" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Role</Label>
-                      <Select defaultValue="volunteer">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Administrator</SelectItem>
-                          <SelectItem value="leader">Youth Leader</SelectItem>
-                          <SelectItem value="volunteer">Volunteer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={() => setInviteDialogOpen(false)}>Send Invitation</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+            <CardHeader>
+              <CardTitle>Access Snapshot</CardTitle>
+              <CardDescription>Example access levels for a configured organization</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Last Active</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {teamMembers.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                              {member.name.split(" ").map((n) => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{member.name}</p>
-                            <p className="text-sm text-muted-foreground">{member.email}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={rolePermissions[member.role as keyof typeof rolePermissions].color}
-                        >
-                          {rolePermissions[member.role as keyof typeof rolePermissions].label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(member.lastActive).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            member.status === "active"
-                              ? "bg-success/10 text-success border-success/20"
-                              : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {member.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardContent className="space-y-3">
+              {teamMembers.map((member) => (
+                <div key={member.email} className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <p className="font-medium">{member.name}</p>
+                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="capitalize">{member.role}</Badge>
+                    <Badge variant={member.status === "active" ? "default" : "secondary"}>{member.status}</Badge>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {Object.entries(rolePermissions).map(([key, role]) => (
-              <Card key={key}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {rolePermissions.map((role) => (
+              <Card key={role.role}>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className={role.color}>
-                      {role.label}
-                    </Badge>
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <CardTitle className="text-base">{role.role}</CardTitle>
+                  <CardDescription>{role.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {role.permissions.map((perm) => (
-                      <li key={perm} className="flex items-center gap-2 text-sm">
+                    {role.permissions.map((permission) => (
+                      <li key={permission} className="flex items-center gap-2 text-sm">
                         <CheckCircle className="h-4 w-4 text-success" />
-                        {perm}
+                        {permission}
                       </li>
                     ))}
                   </ul>
@@ -330,7 +155,6 @@ const Admin = () => {
         </TabsContent>
 
         <TabsContent value="privacy" className="space-y-6">
-          {/* Privacy Notice */}
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
@@ -338,82 +162,67 @@ const Admin = () => {
                   <Info className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-primary">Data Privacy Compliance</h3>
+                  <h3 className="font-semibold text-primary">Data Privacy Reminder</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    This system handles sensitive personal information about youth members. 
-                    All users must comply with church data protection policies and applicable 
-                    privacy regulations. Data should only be accessed for legitimate ministry purposes.
+                    This workspace may contain sensitive contact, participation, and engagement information. Access should match each person's role and the organization should only collect data it has a clear reason to use.
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Privacy Settings */}
           <Card>
             <CardHeader>
               <CardTitle>Privacy Settings</CardTitle>
               <CardDescription>Configure data handling and visibility options</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <p className="font-medium">Require data access justification</p>
-                  <p className="text-sm text-muted-foreground">
-                    Users must provide a reason when exporting data
-                  </p>
+                  <p className="font-medium">Require export justification</p>
+                  <p className="text-sm text-muted-foreground">Users must provide a reason when exporting {memberLabel.toLowerCase()} data</p>
                 </div>
                 <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <p className="font-medium">Hide contact details from volunteers</p>
-                  <p className="text-sm text-muted-foreground">
-                    Phone numbers and addresses only visible to leaders
-                  </p>
+                  <p className="font-medium">Limit volunteer visibility</p>
+                  <p className="text-sm text-muted-foreground">Contact details are visible only to approved leaders and admins</p>
                 </div>
                 <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
                   <p className="font-medium">Enable audit logging</p>
-                  <p className="text-sm text-muted-foreground">
-                    Track all data access and modifications
-                  </p>
+                  <p className="text-sm text-muted-foreground">Track access, edits, {attendanceLabel.toLowerCase()}, and report exports</p>
                 </div>
                 <Switch defaultChecked />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <p className="font-medium">Auto-delete inactive records</p>
-                  <p className="text-sm text-muted-foreground">
-                    Remove data for youth inactive for 2+ years
-                  </p>
+                  <p className="font-medium">Review inactive records</p>
+                  <p className="text-sm text-muted-foreground">Flag inactive {memberLabel.toLowerCase()} and unused {programLabel.toLowerCase()} for review</p>
                 </div>
                 <Switch />
               </div>
             </CardContent>
           </Card>
 
-          {/* Confidentiality Notice */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-warning" />
-                Confidentiality Agreement
+                Confidentiality Expectations
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-2">
-                <p>
-                  <strong>All users of this system acknowledge that:</strong>
-                </p>
+                <p><strong>Every user with access should understand that:</strong></p>
                 <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>Youth member information is confidential and must be protected</li>
-                  <li>Data may only be used for legitimate youth ministry purposes</li>
-                  <li>Sharing data with unauthorized parties is prohibited</li>
-                  <li>All access and modifications are logged and audited</li>
-                  <li>Violations may result in access revocation and disciplinary action</li>
+                  <li>{memberLabel} information is confidential and should be protected</li>
+                  <li>Data should only be used for legitimate organizational work</li>
+                  <li>Sharing data with unauthorized people is prohibited</li>
+                  <li>Access and changes may be logged for accountability</li>
                 </ul>
               </div>
             </CardContent>

@@ -1,43 +1,408 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  getActiveChurchId,
   getStoredSession,
   isSupabaseConfigured,
   signInWithPassword,
+  signUpWithPassword,
+  storeActiveChurchId,
   storeSession,
+  supabaseRequest,
   type SupabaseSession,
 } from "@/lib/supabaseRest";
+
+const PENDING_SIGNUP_INTENT_KEY = "ivula_canopy_pending_signup_intent";
+
+export type ChurchRole = "owner" | "admin" | "leader" | "volunteer" | "viewer" | "member";
+export type ChurchMembershipStatus = "active" | "invited" | "disabled";
+export type JoinableChurchRole = "leader" | "volunteer" | "viewer" | "member";
+
+export type SignupIntent =
+  | { type: "register_church"; churchName: string; organizationType?: string }
+  | { type: "join_church"; joinCode: string; role: JoinableChurchRole };
+
+export interface OrganizationLabels {
+  organizationType: string;
+  memberLabel: string;
+  programLabel: string;
+  groupLabel: string;
+  attendanceLabel: string;
+  primaryFocus: string;
+}
+
+export interface ChurchMembership extends OrganizationLabels {
+  id: string;
+  churchId: string;
+  churchName: string;
+  churchSlug?: string | null;
+  churchJoinCode?: string | null;
+  role: ChurchRole;
+  status: ChurchMembershipStatus;
+}
 
 interface AuthContextValue {
   isConfigured: boolean;
   session: SupabaseSession | null;
   isAuthenticated: boolean;
+  memberships: ChurchMembership[];
+  activeMembership: ChurchMembership | null;
+  pendingMembership: ChurchMembership | null;
+  isLoadingAccess: boolean;
+  accessError: string | null;
+  isMemberPortal: boolean;
+  canEditRecords: boolean;
+  canManageChurch: boolean;
+  canRecordAttendance: boolean;
+  canExportRecords: boolean;
+  reloadAccess: () => Promise<void>;
+  applyIntent: (intent: SignupIntent) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, intent: SignupIntent) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => void;
+  switchChurch: (churchId: string) => void;
 }
 
+interface ChurchRow {
+  id: string;
+  name: string;
+  slug?: string | null;
+  join_code?: string | null;
+  organization_type?: string | null;
+  member_label?: string | null;
+  program_label?: string | null;
+  group_label?: string | null;
+  attendance_label?: string | null;
+  primary_focus?: string | null;
+}
+
+interface MembershipRow {
+  id: string;
+  church_id: string;
+  role: ChurchRole;
+  status: ChurchMembershipStatus;
+  churches?: ChurchRow | ChurchRow[] | null;
+}
+
+interface CreatedChurchMembershipRow {
+  membership_id: string;
+  church_id: string;
+  church_name: string;
+  church_slug?: string | null;
+  role: ChurchRole;
+  status?: ChurchMembershipStatus;
+}
+
+const defaultLabels: OrganizationLabels = {
+  organizationType: "youth_program",
+  memberLabel: "People",
+  programLabel: "Programs",
+  groupLabel: "Groups",
+  attendanceLabel: "Attendance",
+  primaryFocus: "Youth Programs",
+};
+
+const organizationPresetLabels: Record<string, OrganizationLabels> = {
+  church: {
+    organizationType: "church",
+    memberLabel: "Members",
+    programLabel: "Ministries",
+    groupLabel: "Small Groups",
+    attendanceLabel: "Attendance",
+    primaryFocus: "Church Programs",
+  },
+  nonprofit: {
+    organizationType: "nonprofit",
+    memberLabel: "Participants",
+    programLabel: "Programs",
+    groupLabel: "Teams",
+    attendanceLabel: "Participation",
+    primaryFocus: "Community Impact",
+  },
+  school: {
+    organizationType: "school",
+    memberLabel: "Students",
+    programLabel: "Activities",
+    groupLabel: "Clubs",
+    attendanceLabel: "Attendance",
+    primaryFocus: "Student Engagement",
+  },
+  club: {
+    organizationType: "club",
+    memberLabel: "Members",
+    programLabel: "Activities",
+    groupLabel: "Committees",
+    attendanceLabel: "Participation",
+    primaryFocus: "Member Engagement",
+  },
+  youth_program: defaultLabels,
+  other: {
+    organizationType: "other",
+    memberLabel: "People",
+    programLabel: "Programs",
+    groupLabel: "Teams",
+    attendanceLabel: "Engagement",
+    primaryFocus: "Organizational Health",
+  },
+};
+
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function getJoinedChurch(row: MembershipRow): ChurchRow | null {
+  if (Array.isArray(row.churches)) return row.churches[0] ?? null;
+  return row.churches ?? null;
+}
+
+function getLabelsForOrganizationType(organizationType?: string): OrganizationLabels {
+  return organizationPresetLabels[organizationType ?? defaultLabels.organizationType] ?? defaultLabels;
+}
+
+function toLabels(church?: ChurchRow | null): OrganizationLabels {
+  return {
+    organizationType: church?.organization_type ?? defaultLabels.organizationType,
+    memberLabel: church?.member_label ?? defaultLabels.memberLabel,
+    programLabel: church?.program_label ?? defaultLabels.programLabel,
+    groupLabel: church?.group_label ?? defaultLabels.groupLabel,
+    attendanceLabel: church?.attendance_label ?? defaultLabels.attendanceLabel,
+    primaryFocus: church?.primary_focus ?? defaultLabels.primaryFocus,
+  };
+}
+
+function toMembership(row: MembershipRow): ChurchMembership {
+  const church = getJoinedChurch(row);
+  return {
+    id: row.id,
+    churchId: row.church_id,
+    churchName: church?.name ?? "Organization",
+    churchSlug: church?.slug,
+    churchJoinCode: church?.join_code,
+    role: row.role,
+    status: row.status,
+    ...toLabels(church),
+  };
+}
+
+function toCreatedMembership(row: CreatedChurchMembershipRow): ChurchMembership {
+  return {
+    id: row.membership_id,
+    churchId: row.church_id,
+    churchName: row.church_name,
+    churchSlug: row.church_slug,
+    role: row.role,
+    status: row.status ?? "active",
+    ...defaultLabels,
+  };
+}
+
+function storePendingSignupIntent(intent: SignupIntent | null) {
+  if (!intent) {
+    window.localStorage.removeItem(PENDING_SIGNUP_INTENT_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(PENDING_SIGNUP_INTENT_KEY, JSON.stringify(intent));
+}
+
+function getPendingSignupIntent(): SignupIntent | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_SIGNUP_INTENT_KEY);
+    return raw ? (JSON.parse(raw) as SignupIntent) : null;
+  } catch (error) {
+    console.error("Unable to read pending signup intent", error);
+    return null;
+  }
+}
+
+async function fetchMemberships(): Promise<ChurchMembership[]> {
+  const rows = await supabaseRequest<MembershipRow[]>(
+    "church_memberships?select=id,church_id,role,status,churches(id,name,slug,join_code,organization_type,member_label,program_label,group_label,attendance_label,primary_focus)&status=in.(active,invited)&order=created_at.asc"
+  );
+  return rows.map(toMembership);
+}
+
+async function createFirstChurchForUser(session: SupabaseSession, churchNameOverride?: string): Promise<ChurchMembership[]> {
+  if (!session.user?.id) return [];
+
+  const churchName = churchNameOverride || (session.user.email ? `${session.user.email.split("@")[0]}'s Organization` : "My Organization");
+  const rows = await supabaseRequest<CreatedChurchMembershipRow[]>("rpc/create_church_for_current_user", {
+    method: "POST",
+    body: JSON.stringify({ requested_church_name: churchName }),
+  });
+
+  const createdMemberships = rows.map(toCreatedMembership);
+  const refreshedMemberships = await fetchMemberships();
+  return refreshedMemberships.length > 0 ? refreshedMemberships : createdMemberships;
+}
+
+async function configureCreatedOrganization(membership: ChurchMembership | undefined, organizationType?: string) {
+  if (!membership?.churchId || !organizationType) return;
+
+  const labels = getLabelsForOrganizationType(organizationType);
+  await supabaseRequest("rpc/update_organization_settings", {
+    method: "POST",
+    body: JSON.stringify({
+      target_church_id: membership.churchId,
+      requested_name: membership.churchName,
+      requested_organization_type: labels.organizationType,
+      requested_member_label: labels.memberLabel,
+      requested_program_label: labels.programLabel,
+      requested_group_label: labels.groupLabel,
+      requested_attendance_label: labels.attendanceLabel,
+      requested_primary_focus: labels.primaryFocus,
+    }),
+  });
+}
+
+async function joinChurchForUser(intent: Extract<SignupIntent, { type: "join_church" }>): Promise<ChurchMembership[]> {
+  const rows = await supabaseRequest<CreatedChurchMembershipRow[]>("rpc/join_church_for_current_user", {
+    method: "POST",
+    body: JSON.stringify({ requested_join_code: intent.joinCode, requested_role: intent.role }),
+  });
+
+  const joinedMemberships = rows.map(toCreatedMembership);
+  const refreshedMemberships = await fetchMemberships();
+  return refreshedMemberships.length > 0 ? refreshedMemberships : joinedMemberships;
+}
+
+async function applySignupIntent(session: SupabaseSession, intent: SignupIntent): Promise<ChurchMembership[]> {
+  if (intent.type === "register_church") {
+    const createdMemberships = await createFirstChurchForUser(session, intent.churchName);
+    await configureCreatedOrganization(createdMemberships[0], intent.organizationType);
+    const refreshedMemberships = await fetchMemberships();
+    return refreshedMemberships.length > 0 ? refreshedMemberships : createdMemberships;
+  }
+
+  return joinChurchForUser(intent);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SupabaseSession | null>(() => {
     if (!isSupabaseConfigured) return null;
     return getStoredSession();
   });
+  const [memberships, setMemberships] = useState<ChurchMembership[]>([]);
+  const [activeChurchId, setActiveChurchId] = useState<string | null>(() => getActiveChurchId());
+  const [isLoadingAccess, setIsLoadingAccess] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
+
+  async function loadAccess(nextSession: SupabaseSession | null) {
+    if (!isSupabaseConfigured || !nextSession?.access_token) {
+      setMemberships([]);
+      setActiveChurchId(null);
+      return;
+    }
+
+    setIsLoadingAccess(true);
+    setAccessError(null);
+
+    try {
+      let nextMemberships = await fetchMemberships();
+      const pendingIntent = getPendingSignupIntent();
+
+      if (nextMemberships.length === 0 && pendingIntent) {
+        nextMemberships = await applySignupIntent(nextSession, pendingIntent);
+        storePendingSignupIntent(null);
+      }
+
+      // Never auto-create an org unless the user explicitly chose "Register organization".
+      // Users who sign in with no membership are shown a join/create screen instead.
+      if (nextMemberships.length === 0 && pendingIntent?.type === "register_church") {
+        nextMemberships = await createFirstChurchForUser(nextSession);
+      }
+
+      setMemberships(nextMemberships);
+      const storedChurchId = getActiveChurchId();
+      const activeMemberships = nextMemberships.filter((membership) => membership.status === "active");
+      const nextActive = activeMemberships.find((membership) => membership.churchId === storedChurchId) ?? activeMemberships[0] ?? null;
+      storeActiveChurchId(nextActive?.churchId ?? null);
+      setActiveChurchId(nextActive?.churchId ?? null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to load organization access";
+      setAccessError(message);
+      setMemberships([]);
+      setActiveChurchId(null);
+    } finally {
+      setIsLoadingAccess(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAccess(session);
+  }, [session?.access_token]);
+
+  const activeMembership = memberships.find((membership) => membership.status === "active" && membership.churchId === activeChurchId) ?? memberships.find((membership) => membership.status === "active") ?? null;
+  const pendingMembership = memberships.find((membership) => membership.status === "invited") ?? null;
+  const activeRole = activeMembership?.role;
+  // viewer and member roles see the community member portal, not the admin dashboard
+  const isMemberPortal = activeRole === "viewer" || activeRole === "member";
+  const canManageChurch = activeRole === "owner" || activeRole === "admin";
+  const canEditRecords = canManageChurch || activeRole === "leader";
+  const canRecordAttendance = canEditRecords || activeRole === "volunteer";
+  const canExportRecords = canEditRecords;
 
   const value = useMemo<AuthContextValue>(
     () => ({
       isConfigured: isSupabaseConfigured,
       session,
       isAuthenticated: Boolean(session?.access_token),
+      memberships,
+      activeMembership,
+      pendingMembership,
+      isLoadingAccess,
+      accessError,
+      isMemberPortal,
+      canEditRecords,
+      canManageChurch,
+      canRecordAttendance,
+      canExportRecords,
+      async reloadAccess() {
+        await loadAccess(session);
+      },
+      async applyIntent(intent: SignupIntent) {
+        if (!session) throw new Error("Not signed in");
+        await applySignupIntent(session, intent);
+        // Re-fetch fully hydrated memberships (labels, church details) rather than
+        // using the potentially stale pre-refresh rows returned by applySignupIntent.
+        await loadAccess(session);
+      },
       async signIn(email, password) {
         const nextSession = await signInWithPassword(email, password);
         setSession(nextSession);
+        await loadAccess(nextSession);
+      },
+      async signUp(email, password, intent) {
+        storePendingSignupIntent(intent);
+        const nextSession = await signUpWithPassword(email, password);
+
+        if (!nextSession) {
+          return { needsEmailConfirmation: true };
+        }
+
+        setSession(nextSession);
+        await loadAccess(nextSession);
+        return { needsEmailConfirmation: false };
       },
       signOut() {
         storeSession(null);
+        storePendingSignupIntent(null);
+        // Remove all tenant-scoped localStorage data so a subsequent
+        // sign-in as a different user never sees another user's data.
+        const prefix = "ivula_canopy_";
+        Object.keys(window.localStorage)
+          .filter((k) => k.startsWith(prefix))
+          .forEach((k) => window.localStorage.removeItem(k));
         setSession(null);
+        setMemberships([]);
+        setActiveChurchId(null);
+      },
+      switchChurch(churchId) {
+        const membership = memberships.find((item) => item.status === "active" && item.churchId === churchId);
+        if (!membership) return;
+        storeActiveChurchId(churchId);
+        setActiveChurchId(churchId);
+        window.location.reload();
       },
     }),
-    [session]
+    [session, memberships, activeMembership, pendingMembership, isLoadingAccess, accessError, isMemberPortal, canEditRecords, canManageChurch, canRecordAttendance, canExportRecords]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
