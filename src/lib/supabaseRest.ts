@@ -56,7 +56,7 @@ function requireSupabaseConfig() {
     throw new Error("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.");
   }
 
-  return { supabaseUrl, supabaseAnonKey };
+  return { supabaseUrl: supabaseUrl.replace(/\/$/, ""), supabaseAnonKey };
 }
 
 function getEmailRedirectTo() {
@@ -205,7 +205,9 @@ export async function updateUserMetadata(metadata: Record<string, unknown>): Pro
   const token = await getValidToken();
   if (!token) throw new Error("Not authenticated");
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+  const authUserUrl = `${supabaseUrl}/auth/v1/user`;
+  console.debug("[updateUserMetadata] PUT", authUserUrl);
+  const response = await fetch(authUserUrl, {
     method: "PUT",
     headers: {
       apikey: supabaseAnonKey,
@@ -220,7 +222,7 @@ export async function updateUserMetadata(metadata: Record<string, unknown>): Pro
     throw new Error(payload?.error_description || payload?.msg || payload?.message || "Unable to update profile");
   }
 
-  console.debug("[updateUserMetadata] response payload:", JSON.stringify(payload));
+  console.debug("[updateUserMetadata] ok, user_metadata:", JSON.stringify(payload?.user_metadata));
 
   // payload IS the updated user object from Supabase (id, email, user_metadata, …).
   // Preserve the session tokens and replace the user wholesale.
