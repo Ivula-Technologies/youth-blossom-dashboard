@@ -1,8 +1,20 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Bell, Building2, CheckCircle, Database, Download, ExternalLink, Link, Palette, SlidersHorizontal, Upload } from "lucide-react";
+import { AlertTriangle, Bell, Building2, CheckCircle, Database, Download, ExternalLink, Link, Moon, Palette, SlidersHorizontal, Sun, SunMoon, Upload, User } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
-import { supabaseRequest } from "@/lib/supabaseRest";
+import { deleteCurrentUser, isSupabaseConfigured, supabaseRequest, updateUserMetadata } from "@/lib/supabaseRest";
+import { getStoredTheme, setTheme } from "@/lib/theme";
 import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,7 +101,22 @@ const presets = {
 };
 
 const Settings = () => {
-  const { activeMembership, canManageChurch } = useAuth();
+  const { activeMembership, canManageChurch, session, signOut } = useAuth();
+  const userEmail = session?.user?.email ?? "";
+  const userInitials = userEmail.slice(0, 2).toUpperCase();
+  const savedName = (session?.user as any)?.user_metadata?.display_name as string | undefined;
+  const [displayName, setDisplayName] = useState(
+    savedName ?? userEmail.split("@")[0].replace(".", " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [theme, setThemeState] = useState(getStoredTheme);
+
+  function handleThemeChange(value: string) {
+    setThemeState(value as any);
+    setTheme(value as any);
+  }
   const [organizationName, setOrganizationName] = useState("");
   const [organizationType, setOrganizationType] = useState("other");
   const [memberLabel, setMemberLabel] = useState("People");
@@ -120,6 +147,37 @@ const Settings = () => {
     setGroupLabel(preset.groupLabel);
     setAttendanceLabel(preset.attendanceLabel);
     setPrimaryFocus(preset.primaryFocus);
+  }
+
+  async function saveProfile(e: FormEvent) {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      if (isSupabaseConfigured) {
+        await updateUserMetadata({ display_name: displayName.trim() });
+      }
+      toast({ title: "Profile updated" });
+    } catch (err) {
+      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Unable to save.", variant: "destructive" });
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      if (isSupabaseConfigured) {
+        await deleteCurrentUser();
+      }
+      signOut();
+      toast({ title: "Account deleted", description: "Your account has been permanently removed." });
+    } catch (err) {
+      toast({ title: "Delete failed", description: err instanceof Error ? err.message : "Unable to delete account.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
   }
 
   async function saveOrganizationSettings(event: FormEvent<HTMLFormElement>) {
@@ -204,11 +262,12 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-4">
+        <TabsList className="grid w-full max-w-2xl grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Alerts</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -303,14 +362,14 @@ const Settings = () => {
                   <p className="font-medium">Theme</p>
                   <p className="text-sm text-muted-foreground">Choose your preferred color scheme</p>
                 </div>
-                <Select defaultValue="light">
+                <Select value={theme} onValueChange={handleThemeChange}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
+                    <SelectItem value="light"><span className="flex items-center gap-2"><Sun className="h-4 w-4" />Light</span></SelectItem>
+                    <SelectItem value="dark"><span className="flex items-center gap-2"><Moon className="h-4 w-4" />Dark</span></SelectItem>
+                    <SelectItem value="system"><span className="flex items-center gap-2"><SunMoon className="h-4 w-4" />System</span></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -381,38 +440,24 @@ const Settings = () => {
               <CardDescription>Connect with calendars, email tools, and existing organization systems</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="rounded-lg border border-muted bg-muted/40 p-4 flex items-start gap-3 mb-2">
+                <SunMoon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Third-party integrations (Planning Center, Mailchimp, Google Calendar, etc.) are on the roadmap. Once connected, data will sync automatically. Check back in a future release.
+                </p>
+              </div>
               {[
-                { name: "Organization database", description: "Sync people data with your existing system", connected: false },
-                { name: "Planning Center", description: "Import attendance and volunteer data", connected: false },
-                { name: "Mailchimp", description: "Sync contacts for email communications", connected: false },
-                { name: "Google Calendar", description: "Sync program schedules and events", connected: true },
+                { name: "Planning Center", description: "Import attendance and volunteer data" },
+                { name: "Mailchimp", description: "Sync contacts for email communications" },
+                { name: "Google Calendar", description: "Sync program schedules and events" },
+                { name: "Custom database", description: "Connect your existing people data via API" },
               ].map((integration) => (
-                <div key={integration.name} className="flex items-center justify-between p-4 rounded-lg border">
+                <div key={integration.name} className="flex items-center justify-between p-4 rounded-lg border opacity-60">
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{integration.name}</p>
-                      {integration.connected && (
-                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Connected
-                        </Badge>
-                      )}
-                    </div>
+                    <p className="font-medium">{integration.name}</p>
                     <p className="text-sm text-muted-foreground">{integration.description}</p>
                   </div>
-                  <Button
-                    variant={integration.connected ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => toast({
-                      title: integration.connected ? "Integration settings" : "Integration request saved",
-                      description: integration.connected
-                        ? `${integration.name} is ready for configuration in the next release.`
-                        : `${integration.name} has been marked for setup. API connection screens are coming next.`,
-                    })}
-                  >
-                    {integration.connected ? "Configure" : "Connect"}
-                    <ExternalLink className="h-4 w-4 ml-2" />
-                  </Button>
+                  <Badge variant="outline" className="text-xs text-muted-foreground">Coming soon</Badge>
                 </div>
               ))}
             </CardContent>
@@ -481,7 +526,92 @@ const Settings = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="account" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                My Account
+              </CardTitle>
+              <CardDescription>Manage your personal profile and account settings.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-14 w-14">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-semibold">{displayName}</div>
+                  <div className="text-sm text-muted-foreground">{userEmail}</div>
+                  <Badge className="mt-1 text-xs bg-primary/10 text-primary border-0">{activeMembership?.role ?? "staff"}</Badge>
+                </div>
+              </div>
+
+              <Separator />
+
+              <form onSubmit={saveProfile} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="staff-display-name">Display name</Label>
+                  <Input
+                    id="staff-display-name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="staff-email">Email address</Label>
+                  <Input id="staff-email" value={userEmail} disabled className="bg-muted" />
+                  <p className="text-xs text-muted-foreground">Contact your organization owner to change your email.</p>
+                </div>
+                <Button type="submit" disabled={savingProfile}>
+                  {savingProfile ? "Saving..." : "Save Profile"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="text-base text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Danger Zone
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+              <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+                Delete My Account
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your account and remove all your data from our servers.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Yes, delete my account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -296,10 +296,11 @@ const YouthDirectory = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Ages</SelectItem>
-              <SelectItem value="13-15">13-15</SelectItem>
-              <SelectItem value="16-18">16-18</SelectItem>
-              <SelectItem value="19-24">19-24</SelectItem>
-              <SelectItem value="25-30">25-30</SelectItem>
+              <SelectItem value="under-18">Under 18</SelectItem>
+              <SelectItem value="18-30">18–30</SelectItem>
+              <SelectItem value="31-45">31–45</SelectItem>
+              <SelectItem value="46-60">46–60</SelectItem>
+              <SelectItem value="60+">60+</SelectItem>
             </SelectContent>
           </Select>
           <Select value={engagementFilter} onValueChange={setEngagementFilter}>

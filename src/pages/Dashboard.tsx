@@ -50,21 +50,21 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <MetricCard
           title={`Total ${memberLabel}`}
-          value={dashboardMetrics.totalYouths}
+          value={dashboardMetrics.totalMembers}
           icon={Users}
           change={{ value: 8, label: "this month" }}
           trend="up"
         />
         <MetricCard
           title="Active Members"
-          value={dashboardMetrics.activeYouths}
+          value={dashboardMetrics.activeMembers}
           icon={UserCheck}
           change={{ value: 5, label: "vs last month" }}
           trend="up"
         />
         <MetricCard
           title="Inactive"
-          value={dashboardMetrics.inactiveYouths}
+          value={dashboardMetrics.inactiveMembers}
           icon={UserX}
           change={{ value: -2, label: "vs last month" }}
           trend="down"

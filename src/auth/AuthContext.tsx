@@ -13,9 +13,9 @@ import {
 
 const PENDING_SIGNUP_INTENT_KEY = "ivula_canopy_pending_signup_intent";
 
-export type ChurchRole = "owner" | "admin" | "leader" | "volunteer" | "viewer";
+export type ChurchRole = "owner" | "admin" | "leader" | "volunteer" | "viewer" | "member";
 export type ChurchMembershipStatus = "active" | "invited" | "disabled";
-export type JoinableChurchRole = "leader" | "volunteer" | "viewer";
+export type JoinableChurchRole = "leader" | "volunteer" | "viewer" | "member";
 
 export type SignupIntent =
   | { type: "register_church"; churchName: string; organizationType?: string }
@@ -49,10 +49,13 @@ interface AuthContextValue {
   pendingMembership: ChurchMembership | null;
   isLoadingAccess: boolean;
   accessError: string | null;
+  isMemberPortal: boolean;
   canEditRecords: boolean;
   canManageChurch: boolean;
   canRecordAttendance: boolean;
   canExportRecords: boolean;
+  reloadAccess: () => Promise<void>;
+  applyIntent: (intent: SignupIntent) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, intent: SignupIntent) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => void;
@@ -300,7 +303,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         storePendingSignupIntent(null);
       }
 
-      if (nextMemberships.length === 0) {
+      // Never auto-create an org unless the user explicitly chose "Register organization".
+      // Users who sign in with no membership are shown a join/create screen instead.
+      if (nextMemberships.length === 0 && pendingIntent?.type === "register_church") {
         nextMemberships = await createFirstChurchForUser(nextSession);
       }
 
@@ -327,6 +332,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const activeMembership = memberships.find((membership) => membership.status === "active" && membership.churchId === activeChurchId) ?? memberships.find((membership) => membership.status === "active") ?? null;
   const pendingMembership = memberships.find((membership) => membership.status === "invited") ?? null;
   const activeRole = activeMembership?.role;
+  // viewer and member roles see the community member portal, not the admin dashboard
+  const isMemberPortal = activeRole === "viewer" || activeRole === "member";
   const canManageChurch = activeRole === "owner" || activeRole === "admin";
   const canEditRecords = canManageChurch || activeRole === "leader";
   const canRecordAttendance = canEditRecords || activeRole === "volunteer";
@@ -342,10 +349,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pendingMembership,
       isLoadingAccess,
       accessError,
+      isMemberPortal,
       canEditRecords,
       canManageChurch,
       canRecordAttendance,
       canExportRecords,
+      async reloadAccess() {
+        await loadAccess(session);
+      },
+      async applyIntent(intent: SignupIntent) {
+        if (!session) throw new Error("Not signed in");
+        await applySignupIntent(session, intent);
+        // Re-fetch fully hydrated memberships (labels, church details) rather than
+        // using the potentially stale pre-refresh rows returned by applySignupIntent.
+        await loadAccess(session);
+      },
       async signIn(email, password) {
         const nextSession = await signInWithPassword(email, password);
         setSession(nextSession);
@@ -366,6 +384,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut() {
         storeSession(null);
         storePendingSignupIntent(null);
+        // Remove all tenant-scoped localStorage data so a subsequent
+        // sign-in as a different user never sees another user's data.
+        const prefix = "ivula_canopy_";
+        Object.keys(window.localStorage)
+          .filter((k) => k.startsWith(prefix))
+          .forEach((k) => window.localStorage.removeItem(k));
         setSession(null);
         setMemberships([]);
         setActiveChurchId(null);
@@ -378,7 +402,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.reload();
       },
     }),
-    [session, memberships, activeMembership, pendingMembership, isLoadingAccess, accessError, canEditRecords, canManageChurch, canRecordAttendance, canExportRecords]
+    [session, memberships, activeMembership, pendingMembership, isLoadingAccess, accessError, isMemberPortal, canEditRecords, canManageChurch, canRecordAttendance, canExportRecords]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
