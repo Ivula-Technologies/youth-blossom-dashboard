@@ -78,6 +78,60 @@ function toSession(payload: any): SupabaseSession | null {
   };
 }
 
+function isTokenExpired(session: SupabaseSession): boolean {
+  if (!session.expires_at) return false;
+  // Treat as expired 60 seconds early to avoid clock-edge failures.
+  return Date.now() / 1000 > session.expires_at - 60;
+}
+
+let refreshPromise: Promise<SupabaseSession | null> | null = null;
+
+async function refreshSession(session: SupabaseSession): Promise<SupabaseSession | null> {
+  // Deduplicate concurrent refresh calls — all callers share the same promise.
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    if (!session.refresh_token) return null;
+
+    const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
+    try {
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: {
+          apikey: supabaseAnonKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refresh_token: session.refresh_token }),
+      });
+
+      if (!response.ok) return null;
+
+      const payload = await response.json();
+      const next = toSession(payload);
+      if (next) storeSession(next);
+      return next;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+// Returns a valid access token, refreshing silently if expired. Returns null
+// if the session cannot be refreshed (user must sign in again).
+async function getValidToken(): Promise<string | null> {
+  const session = getStoredSession();
+  if (!session?.access_token) return null;
+
+  if (!isTokenExpired(session)) return session.access_token;
+
+  const refreshed = await refreshSession(session);
+  return refreshed?.access_token ?? null;
+}
+
 export async function signInWithPassword(email: string, password: string) {
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
   const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
@@ -146,14 +200,14 @@ export async function resendSignupConfirmation(email: string) {
 
 export async function updateUserMetadata(metadata: Record<string, unknown>): Promise<void> {
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
-  const session = getStoredSession();
-  if (!session?.access_token) throw new Error("Not authenticated");
+  const token = await getValidToken();
+  if (!token) throw new Error("Not authenticated");
 
   const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
     method: "PUT",
     headers: {
       apikey: supabaseAnonKey,
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ data: metadata }),
@@ -167,14 +221,14 @@ export async function updateUserMetadata(metadata: Record<string, unknown>): Pro
 
 export async function deleteCurrentUser(): Promise<void> {
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
-  const session = getStoredSession();
-  if (!session?.access_token) throw new Error("Not authenticated");
+  const token = await getValidToken();
+  if (!token) throw new Error("Not authenticated");
 
   const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
     method: "DELETE",
     headers: {
       apikey: supabaseAnonKey,
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -186,13 +240,17 @@ export async function deleteCurrentUser(): Promise<void> {
 
 export async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
+
   const session = getStoredSession();
-  const token = session?.access_token ?? supabaseAnonKey;
+  let token = session?.access_token ? await getValidToken() : null;
+  // Fall back to anon key for unauthenticated requests.
+  const authToken = token ?? supabaseAnonKey;
+
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...init,
     headers: {
       apikey: supabaseAnonKey,
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
