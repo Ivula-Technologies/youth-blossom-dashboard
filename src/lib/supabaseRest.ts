@@ -198,7 +198,7 @@ export async function resendSignupConfirmation(email: string) {
   }
 }
 
-export async function updateUserMetadata(metadata: Record<string, unknown>): Promise<void> {
+export async function updateUserMetadata(metadata: Record<string, unknown>): Promise<SupabaseSession> {
   const { supabaseUrl, supabaseAnonKey } = requireSupabaseConfig();
   const token = await getValidToken();
   if (!token) throw new Error("Not authenticated");
@@ -217,6 +217,15 @@ export async function updateUserMetadata(metadata: Record<string, unknown>): Pro
   if (!response.ok) {
     throw new Error(payload?.error_description || payload?.msg || payload?.message || "Unable to update profile");
   }
+
+  // Merge updated user into the stored session so callers see the new metadata.
+  const existing = getStoredSession();
+  if (existing) {
+    const updated: SupabaseSession = { ...existing, user: { ...existing.user, ...payload } };
+    storeSession(updated);
+    return updated;
+  }
+  return existing!;
 }
 
 export async function deleteCurrentUser(): Promise<void> {

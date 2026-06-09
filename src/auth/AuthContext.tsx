@@ -55,6 +55,7 @@ interface AuthContextValue {
   canRecordAttendance: boolean;
   canExportRecords: boolean;
   reloadAccess: () => Promise<void>;
+  updateSession: (updated: SupabaseSession) => void;
   applyIntent: (intent: SignupIntent) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, intent: SignupIntent) => Promise<{ needsEmailConfirmation: boolean }>;
@@ -356,6 +357,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canExportRecords,
       async reloadAccess() {
         await loadAccess(session);
+      },
+      updateSession(updated: SupabaseSession) {
+        storeSession(updated);
+        setSession(updated);
       },
       async applyIntent(intent: SignupIntent) {
         if (!session) throw new Error("Not signed in");

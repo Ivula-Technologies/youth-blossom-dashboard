@@ -22,7 +22,7 @@ import { deleteCurrentUser, isSupabaseConfigured, updateUserMetadata } from "@/l
 import { toast } from "@/hooks/use-toast";
 
 export default function MemberProfile() {
-  const { session, activeMembership, signOut } = useAuth();
+  const { session, activeMembership, signOut, updateSession } = useAuth();
   const userEmail = session?.user?.email ?? "";
   const userInitials = userEmail.slice(0, 2).toUpperCase();
 
@@ -46,7 +46,8 @@ export default function MemberProfile() {
     setSaving(true);
     try {
       if (isSupabaseConfigured) {
-        await updateUserMetadata({ display_name: displayName.trim(), phone: phone.trim() });
+        const updated = await updateUserMetadata({ display_name: displayName.trim(), phone: phone.trim() });
+        updateSession(updated);
       }
       toast({ title: "Profile updated", description: "Your changes have been saved." });
     } catch (err) {
