@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { deleteCurrentUser, isSupabaseConfigured, supabaseRequest, updateUserMetadata } from "@/lib/supabaseRest";
 import { getStoredTheme, setTheme } from "@/lib/theme";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,7 +102,8 @@ const presets = {
 };
 
 const Settings = () => {
-  const { activeMembership, canManageChurch, session, signOut } = useAuth();
+  const { activeMembership, canManageChurch, session, signOut, reloadAccess } = useAuth();
+  const navigate = useNavigate();
   const userEmail = session?.user?.email ?? "";
   const userInitials = userEmail.slice(0, 2).toUpperCase();
   const savedName = (session?.user as any)?.user_metadata?.display_name as string | undefined;
@@ -203,7 +205,8 @@ const Settings = () => {
       });
 
       toast({ title: "Organization settings saved" });
-      window.location.reload();
+      await reloadAccess();
+      navigate("/settings");
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : "Unable to save organization settings";
       setError(message);
