@@ -1,7 +1,8 @@
 import { ReactNode, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { MobileNav } from "./MobileNav";
-import { Bell, Building2, Check, ChevronDown, Menu, Search } from "lucide-react";
+import { Bell, Building2, Check, ChevronDown, Menu, Moon, Search, Sun, SunMoon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/auth/AuthContext";
+import { getStoredTheme, setTheme } from "@/lib/theme";
 import { toast } from "@/hooks/use-toast";
 
 interface AppLayoutProps {
@@ -26,9 +28,20 @@ function formatRole(role: string) {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [theme, setThemeState] = useState(getStoredTheme);
   const { session, signOut, memberships, activeMembership, canManageChurch, switchChurch } = useAuth();
+  const navigate = useNavigate();
   const userEmail = session?.user?.email ?? "Dashboard user";
   const userInitials = userEmail.slice(0, 2).toUpperCase();
+
+  function cycleTheme() {
+    const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+    setThemeState(next);
+    setTheme(next);
+    toast({ title: `Theme: ${next}` });
+  }
+
+  const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : SunMoon;
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -104,6 +117,10 @@ export function AppLayout({ children }: AppLayoutProps) {
               </DropdownMenu>
             )}
 
+            <Button variant="ghost" size="icon" onClick={cycleTheme} title={`Theme: ${theme}`}>
+              <ThemeIcon className="h-5 w-5" />
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -155,8 +172,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => toast({ title: "Profile", description: userEmail })}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { window.location.href = "/settings"; }}>Settings</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/profile")}>My Profile</DropdownMenuItem>
+                {canManageChurch && (
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>Settings</DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={signOut}>
                   Log out

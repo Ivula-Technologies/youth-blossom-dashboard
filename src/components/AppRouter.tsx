@@ -13,6 +13,7 @@ import Reports from "@/pages/Reports";
 import Team from "@/pages/Team";
 import Admin from "@/pages/Admin";
 import Settings from "@/pages/Settings";
+import StaffProfile from "@/pages/StaffProfile";
 import NotFound from "@/pages/NotFound";
 
 // Member portal pages
@@ -49,6 +50,7 @@ export function AppRouter() {
         <Route path="/programs" element={<Programs />} />
         <Route path="/communications" element={<Communications />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/profile" element={<StaffProfile />} />
         {canExportRecords ? <Route path="/reports" element={<Reports />} /> : <Route path="/reports" element={<Navigate to="/" replace />} />}
         {canManageChurch ? <Route path="/team" element={<Team />} /> : <Route path="/team" element={<Navigate to="/" replace />} />}
         {canManageChurch ? <Route path="/admin" element={<Admin />} /> : <Route path="/admin" element={<Navigate to="/" replace />} />}

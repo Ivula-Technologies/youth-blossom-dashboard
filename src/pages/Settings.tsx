@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
-import { AlertTriangle, Bell, Building2, CheckCircle, Database, Download, ExternalLink, Link, Palette, SlidersHorizontal, Upload, User } from "lucide-react";
+import { AlertTriangle, Bell, Building2, CheckCircle, Database, Download, ExternalLink, Link, Moon, Palette, SlidersHorizontal, Sun, SunMoon, Upload, User } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { deleteCurrentUser, isSupabaseConfigured, supabaseRequest, updateUserMetadata } from "@/lib/supabaseRest";
+import { getStoredTheme, setTheme } from "@/lib/theme";
 import { toast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -110,6 +111,12 @@ const Settings = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [theme, setThemeState] = useState(getStoredTheme);
+
+  function handleThemeChange(value: string) {
+    setThemeState(value as any);
+    setTheme(value as any);
+  }
   const [organizationName, setOrganizationName] = useState("");
   const [organizationType, setOrganizationType] = useState("other");
   const [memberLabel, setMemberLabel] = useState("People");
@@ -355,14 +362,14 @@ const Settings = () => {
                   <p className="font-medium">Theme</p>
                   <p className="text-sm text-muted-foreground">Choose your preferred color scheme</p>
                 </div>
-                <Select defaultValue="light">
+                <Select value={theme} onValueChange={handleThemeChange}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
+                    <SelectItem value="light"><span className="flex items-center gap-2"><Sun className="h-4 w-4" />Light</span></SelectItem>
+                    <SelectItem value="dark"><span className="flex items-center gap-2"><Moon className="h-4 w-4" />Dark</span></SelectItem>
+                    <SelectItem value="system"><span className="flex items-center gap-2"><SunMoon className="h-4 w-4" />System</span></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -433,38 +440,24 @@ const Settings = () => {
               <CardDescription>Connect with calendars, email tools, and existing organization systems</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="rounded-lg border border-muted bg-muted/40 p-4 flex items-start gap-3 mb-2">
+                <SunMoon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Third-party integrations (Planning Center, Mailchimp, Google Calendar, etc.) are on the roadmap. Once connected, data will sync automatically. Check back in a future release.
+                </p>
+              </div>
               {[
-                { name: "Organization database", description: "Sync people data with your existing system", connected: false },
-                { name: "Planning Center", description: "Import attendance and volunteer data", connected: false },
-                { name: "Mailchimp", description: "Sync contacts for email communications", connected: false },
-                { name: "Google Calendar", description: "Sync program schedules and events", connected: true },
+                { name: "Planning Center", description: "Import attendance and volunteer data" },
+                { name: "Mailchimp", description: "Sync contacts for email communications" },
+                { name: "Google Calendar", description: "Sync program schedules and events" },
+                { name: "Custom database", description: "Connect your existing people data via API" },
               ].map((integration) => (
-                <div key={integration.name} className="flex items-center justify-between p-4 rounded-lg border">
+                <div key={integration.name} className="flex items-center justify-between p-4 rounded-lg border opacity-60">
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{integration.name}</p>
-                      {integration.connected && (
-                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Connected
-                        </Badge>
-                      )}
-                    </div>
+                    <p className="font-medium">{integration.name}</p>
                     <p className="text-sm text-muted-foreground">{integration.description}</p>
                   </div>
-                  <Button
-                    variant={integration.connected ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => toast({
-                      title: integration.connected ? "Integration settings" : "Integration request saved",
-                      description: integration.connected
-                        ? `${integration.name} is ready for configuration in the next release.`
-                        : `${integration.name} has been marked for setup. API connection screens are coming next.`,
-                    })}
-                  >
-                    {integration.connected ? "Configure" : "Connect"}
-                    <ExternalLink className="h-4 w-4 ml-2" />
-                  </Button>
+                  <Badge variant="outline" className="text-xs text-muted-foreground">Coming soon</Badge>
                 </div>
               ))}
             </CardContent>
