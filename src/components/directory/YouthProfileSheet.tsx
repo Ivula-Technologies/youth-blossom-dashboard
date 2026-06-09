@@ -72,10 +72,10 @@ export function YouthProfileSheet({
 
   const getDiscipleshipLabel = (status: string) => {
     const labels = {
-      new_believer: "New Believer",
-      growing: "Growing",
-      mature: "Mature",
-      leader: "Spiritual Leader",
+      new_member: "New Member",
+      developing: "Developing",
+      experienced: "Experienced",
+      leader: "Team Leader",
     };
     return labels[status as keyof typeof labels] || status;
   };
@@ -251,7 +251,7 @@ export function YouthProfileSheet({
 
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Ministry Involvement
+                  Activity Areas
                 </h4>
                 {youth.ministryAreas.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -262,7 +262,7 @@ export function YouthProfileSheet({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Not involved in any ministry areas</p>
+                  <p className="text-sm text-muted-foreground">Not assigned to any activity areas</p>
                 )}
               </div>
             </TabsContent>
@@ -319,13 +319,13 @@ export function YouthProfileSheet({
             <TabsContent value="growth" className="mt-4 space-y-4">
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Spiritual Growth
+                  Development
                 </h4>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <div className="flex items-center gap-3">
                     <TrendingUp className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="text-xs text-muted-foreground">Discipleship Status</p>
+                      <p className="text-xs text-muted-foreground">Development Stage</p>
                       <p className="font-medium">{getDiscipleshipLabel(youth.discipleshipStatus)}</p>
                     </div>
                   </div>
